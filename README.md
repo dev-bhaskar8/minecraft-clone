@@ -34,7 +34,7 @@ A browser-based Minecraft clone built with Three.js, featuring procedural terrai
 
 ## Live Demo
 
-Visit the live site at: [https://yourusername.github.io/minecraft-clone/](https://yourusername.github.io/minecraft-clone/)
+Visit the live site at: [https://dev-bhaskar8.github.io/minecraft-clone/](https://dev-bhaskar8.github.io/minecraft-clone/)
 
 ## Tech Stack
 
@@ -54,7 +54,7 @@ minecraft-clone/
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/minecraft-clone.git
+   git clone https://github.com/dev-bhaskar8/minecraft-clone.git
    ```
 
 2. Open `index.html` in your web browser
