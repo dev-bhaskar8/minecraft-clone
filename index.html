@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Clone</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; font-family: Arial, sans-serif; }
+        canvas { display: block; }
+        #crosshair {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 30px;
+            pointer-events: none;
+            text-shadow: 0 0 3px black;
+            z-index: 100;
+        }
+        #hotbar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 5px;
+            z-index: 100;
+        }
+        .slot {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            background: rgba(0,0,0,0.5);
+        }
+        .slot.selected { border-color: white; }
+        #instructions {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 40px;
+            text-align: center;
+            border-radius: 10px;
+        }
+        #instructions button {
+            padding: 15px 30px;
+            font-size: 18px;
+            margin-top: 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="crosshair">+</div>
+    <div id="hotbar"></div>
+    <div id="instructions">
+        <h2>Click to Play</h2>
+        <p>WASD - Move | Mouse - Look</p>
+        <p>Space - Jump | Left Click - Destroy | Right Click - Place</p>
+        <p>1-6 - Select Block Type</p>
+        <button onclick="startGame()">Start Game</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        const CHUNK_SIZE = 48;
+        const WORLD_HEIGHT = 32;
+
+        let camera, scene, renderer;
+        let blocks = {};
+        let clouds = [];
+        let water;
+        let time = 0;
+        let selectedBlockType = 1;
+        let isPlaying = false;
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        let canJump = false;
+        let velocity = new THREE.Vector3();
+        let direction = new THREE.Vector3();
+        let euler = new THREE.Euler(0, 0, 0, 'YXZ');
+
+        const blockTypes = {
+            1: { name: 'Grass', color: 0x4CAF50 },
+            2: { name: 'Dirt', color: 0x8B4513 },
+            3: { name: 'Stone', color: 0x808080 },
+            4: { name: 'Wood', color: 0xA0522D },
+            5: { name: 'Leaves', color: 0x228B22 },
+            6: { name: 'Sand', color: 0xF4A460 }
+        };
+
+        const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+
+        function createTexture(type) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+
+            const baseColor = blockTypes[type].color;
+            const r = (baseColor >> 16) & 255;
+            const g = (baseColor >> 8) & 255;
+            const b = baseColor & 255;
+
+            ctx.fillStyle = `rgb(${r},${g},${b})`;
+            ctx.fillRect(0, 0, 64, 64);
+
+            for (let i = 0; i < 400; i++) {
+                const x = Math.random() * 64;
+                const y = Math.random() * 64;
+                const variation = (Math.random() - 0.5) * 40;
+                ctx.fillStyle = `rgb(${Math.max(0, Math.min(255, r + variation))},${Math.max(0, Math.min(255, g + variation))},${Math.max(0, Math.min(255, b + variation))})`;
+                ctx.fillRect(x, y, Math.random() * 4 + 1, Math.random() * 4 + 1);
+            }
+
+            if (type === 3) {
+                for (let i = 0; i < 20; i++) {
+                    ctx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.3})`;
+                    ctx.lineWidth = Math.random() * 2 + 1;
+                    ctx.beginPath();
+                    ctx.moveTo(Math.random() * 64, Math.random() * 64);
+                    ctx.lineTo(Math.random() * 64, Math.random() * 64);
+                    ctx.stroke();
+                }
+            }
+
+            if (type === 4) {
+                for (let i = 0; i < 8; i++) {
+                    ctx.strokeStyle = 'rgba(60, 30, 10, 0.5)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(0, (i + 1) * 8);
+                    ctx.lineTo(64, (i + 1) * 8);
+                    ctx.stroke();
+                }
+            }
+
+            if (type === 5) {
+                for (let i = 0; i < 30; i++) {
+                    ctx.fillStyle = 'rgba(0, 50, 0, 0.3)';
+                    const x = Math.random() * 64;
+                    const y = Math.random() * 64;
+                    ctx.fillRect(x, y, Math.random() * 12, Math.random() * 8);
+                }
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.magFilter = THREE.NearestFilter;
+            texture.minFilter = THREE.NearestFilter;
+
+            return { texture, dataUrl: canvas.toDataURL() };
+        }
+
+        const blockTextures = {
+            1: createTexture(1),
+            2: createTexture(2),
+            3: createTexture(3),
+            4: createTexture(4),
+            5: createTexture(5),
+            6: createTexture(6)
+        };
+
+        function init() {
+            scene = new THREE.Scene();
+
+            const skyCanvas = document.createElement('canvas');
+            skyCanvas.width = 512;
+            skyCanvas.height = 512;
+            const skyCtx = skyCanvas.getContext('2d');
+
+            const skyGradient = skyCtx.createLinearGradient(0, 0, 0, 512);
+            skyGradient.addColorStop(0, '#1e3c72');
+            skyGradient.addColorStop(0.3, '#2a5298');
+            skyGradient.addColorStop(0.5, '#87CEEB');
+            skyGradient.addColorStop(0.7, '#b4d4f7');
+            skyGradient.addColorStop(1, '#ffffff');
+            skyCtx.fillStyle = skyGradient;
+            skyCtx.fillRect(0, 0, 512, 512);
+
+            const sunCanvas = document.createElement('canvas');
+            sunCanvas.width = 512;
+            sunCanvas.height = 512;
+            const sunCtx = sunCanvas.getContext('2d');
+
+            sunCtx.fillStyle = '#87CEEB';
+            sunCtx.fillRect(0, 0, 512, 512);
+
+            const sunGradient = sunCtx.createRadialGradient(256, 150, 0, 256, 150, 80);
+            sunGradient.addColorStop(0, '#fff7e0');
+            sunGradient.addColorStop(0.3, '#ffdd00');
+            sunGradient.addColorStop(0.6, '#ff9500');
+            sunGradient.addColorStop(1, 'transparent');
+            sunCtx.fillStyle = sunGradient;
+            sunCtx.fillRect(0, 0, 512, 512);
+
+            for (let c = 0; c < 20; c++) {
+                const cloudGroup = new THREE.Group();
+                const cloudMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0.95
+                });
+
+                const sphereCount = 5 + Math.floor(Math.random() * 4);
+                for (let s = 0; s < sphereCount; s++) {
+                    const radius = 2 + Math.random() * 2;
+                    const sphere = new THREE.Mesh(
+                        new THREE.SphereGeometry(radius, 16, 16),
+                        cloudMaterial
+                    );
+                    sphere.position.set(
+                        Math.random() * 8 - 4,
+                        Math.random() * 2 - 1,
+                        Math.random() * 8 - 4
+                    );
+                    sphere.scale.y = 0.6;
+                    cloudGroup.add(sphere);
+                }
+
+                cloudGroup.position.set(
+                    Math.random() * 200 - 100,
+                    30 + Math.random() * 20,
+                    Math.random() * 200 - 100
+                );
+                cloudGroup.userData = {
+                    speed: 0.02 + Math.random() * 0.03
+                };
+                scene.add(cloudGroup);
+                clouds.push(cloudGroup);
+            }
+
+            const sun = new THREE.Mesh(
+                new THREE.SphereGeometry(5, 32, 32),
+                new THREE.MeshBasicMaterial({ color: 0xffdd00 })
+            );
+            sun.position.set(30, 50, -30);
+            scene.add(sun);
+
+            const skyTexture = new THREE.CanvasTexture(sunCanvas);
+            const skyGeometry = new THREE.SphereGeometry(200, 32, 32);
+            const skyMaterial = new THREE.MeshBasicMaterial({
+                map: skyTexture,
+                side: THREE.BackSide
+            });
+            const sky = new THREE.Mesh(skyGeometry, skyMaterial);
+            scene.add(sky);
+
+            scene.fog = new THREE.Fog(0x87CEEB, 50, 150);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(CHUNK_SIZE/2, 15, CHUNK_SIZE/2);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(50, 100, 50);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+
+            generateWorld();
+
+            const waterGeometry = new THREE.PlaneGeometry(500, 500);
+            const waterMaterial = new THREE.MeshBasicMaterial({
+                color: 0x0077be,
+                transparent: true,
+                opacity: 0.7,
+                side: THREE.DoubleSide,
+                polygonOffset: true,
+                polygonOffsetFactor: -1,
+                polygonOffsetUnits: -1
+            });
+            water = new THREE.Mesh(waterGeometry, waterMaterial);
+            water.rotation.x = -Math.PI / 2;
+            water.position.y = 0.9;
+            scene.add(water);
+            setupHotbar();
+            setupControls();
+
+            window.addEventListener('resize', onWindowResize);
+            animate();
+        }
+
+        function noise(x, z) {
+            const nx = x / CHUNK_SIZE;
+            const nz = z / CHUNK_SIZE;
+            return Math.sin(nx * 8) * Math.cos(nz * 8) +
+                   Math.sin(nx * 15 + nz * 10) * 0.5 +
+                   Math.cos(nz * 12) * 0.3;
+        }
+
+        function generateWorld() {
+            const heights = [];
+
+            for (let x = 0; x < CHUNK_SIZE; x++) {
+                heights[x] = [];
+                for (let z = 0; z < CHUNK_SIZE; z++) {
+                    const n = noise(x, z);
+                    const height = Math.floor(6 + n * 8);
+                    heights[x][z] = height;
+                }
+            }
+
+            for (let x = 0; x < CHUNK_SIZE; x++) {
+                for (let z = 0; z < CHUNK_SIZE; z++) {
+                    const height = heights[x][z];
+                    for (let y = 0; y < height; y++) {
+                        let type;
+                        if (y === height - 1) type = 1;
+                        else if (y > height - 4) type = 2;
+                        else type = 3;
+                        createBlock(x, y, z, type);
+                    }
+
+                    if (Math.random() < 0.02 && height > 6) {
+                        const treeHeight = 4 + Math.floor(Math.random() * 3);
+                        for (let ty = height; ty < height + treeHeight; ty++) {
+                            createBlock(x, ty, z, 4);
+                        }
+                        for (let lx = -2; lx <= 2; lx++) {
+                            for (let lz = -2; lz <= 2; lz++) {
+                                for (let ly = height + treeHeight - 2; ly < height + treeHeight + 2; ly++) {
+                                    if (Math.abs(lx) + Math.abs(lz) + Math.abs(ly - height - treeHeight) < 4) {
+                                        const key = `${x+lx},${ly},${z+lz}`;
+                                        if (!blocks[key]) {
+                                            createBlock(x + lx, ly, z + lz, 5);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function createBlock(x, y, z, type) {
+            const key = `${x},${y},${z}`;
+            if (blocks[key]) return;
+
+            const material = new THREE.MeshLambertMaterial({ map: blockTextures[type].texture });
+            const cube = new THREE.Mesh(boxGeometry, material);
+            cube.position.set(x + 0.5, y + 0.5, z + 0.5);
+            cube.castShadow = true;
+            cube.receiveShadow = true;
+            cube.userData = { x, y, z, type };
+            scene.add(cube);
+            blocks[key] = cube;
+        }
+
+        function removeBlock(x, y, z) {
+            const key = `${x},${y},${z}`;
+            if (blocks[key]) {
+                scene.remove(blocks[key]);
+                delete blocks[key];
+            }
+        }
+
+        function setupHotbar() {
+            const hotbar = document.getElementById('hotbar');
+            for (let i = 1; i <= 6; i++) {
+                const slot = document.createElement('div');
+                slot.className = i === selectedBlockType ? 'slot selected' : 'slot';
+                slot.style.backgroundImage = `url(${blockTextures[i].dataUrl})`;
+                slot.style.backgroundSize = 'cover';
+                slot.dataset.type = i;
+                hotbar.appendChild(slot);
+            }
+        }
+
+        function updateHotbar() {
+            document.querySelectorAll('.slot').forEach(slot => {
+                slot.classList.toggle('selected', parseInt(slot.dataset.type) === selectedBlockType);
+            });
+        }
+
+        function setupControls() {
+            document.addEventListener('keydown', (e) => {
+                if (!isPlaying) return;
+                switch(e.code) {
+                    case 'KeyW': moveForward = true; break;
+                    case 'KeyS': moveBackward = true; break;
+                    case 'KeyA': moveLeft = true; break;
+                    case 'KeyD': moveRight = true; break;
+                    case 'Space':
+                        if (canJump) {
+                            velocity.y = 10;
+                            canJump = false;
+                        }
+                        break;
+                    case 'Digit1': case 'Digit2': case 'Digit3':
+                    case 'Digit4': case 'Digit5': case 'Digit6':
+                        selectedBlockType = parseInt(e.code.charAt(5));
+                        updateHotbar();
+                        break;
+                }
+            });
+
+            document.addEventListener('keyup', (e) => {
+                switch(e.code) {
+                    case 'KeyW': moveForward = false; break;
+                    case 'KeyS': moveBackward = false; break;
+                    case 'KeyA': moveLeft = false; break;
+                    case 'KeyD': moveRight = false; break;
+                }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isPlaying) return;
+                euler.setFromQuaternion(camera.quaternion);
+                euler.y -= e.movementX * 0.002;
+                euler.x -= e.movementY * 0.002;
+                euler.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, euler.x));
+                camera.quaternion.setFromEuler(euler);
+            });
+
+            document.addEventListener('mousedown', (e) => {
+                if (!isPlaying) return;
+                const raycaster = new THREE.Raycaster();
+                raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+                const intersects = raycaster.intersectObjects(Object.values(blocks));
+
+                if (intersects.length > 0 && intersects[0].distance < 8) {
+                    const hit = intersects[0];
+                    const { x, y, z } = hit.object.userData;
+
+                    if (e.button === 0) {
+                        removeBlock(x, y, z);
+                    } else if (e.button === 2) {
+                        const normal = hit.face.normal;
+                        const newX = x + Math.round(normal.x);
+                        const newY = y + Math.round(normal.y);
+                        const newZ = z + Math.round(normal.z);
+
+                        const playerBox = new THREE.Box3(
+                            new THREE.Vector3(camera.position.x - 0.3, camera.position.y - 1.5, camera.position.z - 0.3),
+                            new THREE.Vector3(camera.position.x + 0.3, camera.position.y + 0.3, camera.position.z + 0.3)
+                        );
+                        const blockBox = new THREE.Box3(
+                            new THREE.Vector3(newX, newY, newZ),
+                            new THREE.Vector3(newX + 1, newY + 1, newZ + 1)
+                        );
+
+                        if (!playerBox.intersectsBox(blockBox)) {
+                            createBlock(newX, newY, newZ, selectedBlockType);
+                        }
+                    }
+                }
+            });
+
+            document.addEventListener('wheel', (e) => {
+                if (!isPlaying) return;
+                selectedBlockType = ((selectedBlockType - 1 + (e.deltaY > 0 ? 1 : -1) + 6) % 6) + 1;
+                updateHotbar();
+            });
+
+            document.addEventListener('contextmenu', (e) => e.preventDefault());
+        }
+
+        function startGame() {
+            document.getElementById('instructions').style.display = 'none';
+            renderer.domElement.requestPointerLock();
+            isPlaying = true;
+        }
+
+        document.addEventListener('pointerlockchange', () => {
+            if (!document.pointerLockElement) {
+                isPlaying = false;
+                document.getElementById('instructions').style.display = 'block';
+            }
+        });
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function checkCollision(position) {
+            const playerBox = new THREE.Box3(
+                new THREE.Vector3(position.x - 0.3, position.y - 1.5, position.z - 0.3),
+                new THREE.Vector3(position.x + 0.3, position.y + 0.3, position.z + 0.3)
+            );
+
+            for (const block of Object.values(blocks)) {
+                const blockBox = new THREE.Box3(
+                    new THREE.Vector3(block.position.x - 0.5, block.position.y - 0.5, block.position.z - 0.5),
+                    new THREE.Vector3(block.position.x + 0.5, block.position.y + 0.5, block.position.z + 0.5)
+                );
+                if (playerBox.intersectsBox(blockBox)) return true;
+            }
+            return false;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isPlaying) {
+                velocity.x -= velocity.x * 10.0 * 0.016;
+                velocity.z -= velocity.z * 10.0 * 0.016;
+                velocity.y -= 25.0 * 0.016;
+
+                direction.z = Number(moveForward) - Number(moveBackward);
+                direction.x = Number(moveRight) - Number(moveLeft);
+                direction.normalize();
+
+                if (moveForward || moveBackward) velocity.z -= direction.z * 100.0 * 0.016;
+                if (moveLeft || moveRight) velocity.x -= direction.x * 100.0 * 0.016;
+
+                const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                forward.y = 0;
+                forward.normalize();
+                const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+                right.y = 0;
+                right.normalize();
+
+                const movement = new THREE.Vector3();
+                movement.addScaledVector(forward, -velocity.z * 0.016);
+                movement.addScaledVector(right, velocity.x * 0.016);
+
+                const newPos = camera.position.clone();
+                newPos.x += movement.x;
+                if (!checkCollision(newPos)) camera.position.x = newPos.x;
+
+                newPos.x = camera.position.x;
+                newPos.z += movement.z;
+                if (!checkCollision(newPos)) camera.position.z = newPos.z;
+
+                newPos.x = camera.position.x;
+                newPos.z = camera.position.z;
+                newPos.y += velocity.y * 0.016;
+                if (!checkCollision(newPos)) {
+                    camera.position.y = newPos.y;
+                } else {
+                    velocity.y = 0;
+                    canJump = true;
+                }
+
+                if (camera.position.y < 2) {
+                    camera.position.y = 2;
+                    velocity.y = 0;
+                    canJump = true;
+                }
+            }
+
+            clouds.forEach(cloud => {
+                cloud.position.x += cloud.userData.speed;
+                if (cloud.position.x > 100) {
+                    cloud.position.x = -100;
+                }
+            });
+
+            time += 0.016;
+            water.position.y = 0.75 + Math.sin(time * 1.5) * 0.2;
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>
