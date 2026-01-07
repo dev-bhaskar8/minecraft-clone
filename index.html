@@ -949,8 +949,9 @@
             document.getElementById('instructions').style.display = 'none';
             document.getElementById('crosshair').classList.remove('hidden');
 
-            // Show mobile pause button
+            // Show mobile controls
             if (isMobile) {
+                document.querySelector('.mobile-controls').style.display = 'block';
                 document.getElementById('pauseBtn').style.display = 'flex';
             } else {
                 renderer.domElement.requestPointerLock();
@@ -971,8 +972,9 @@
             btn.textContent = 'Resume Game';
             document.getElementById('crosshair').classList.add('hidden');
 
-            // Hide mobile pause button when paused
+            // Hide all mobile controls when paused
             if (isMobile) {
+                document.querySelector('.mobile-controls').style.display = 'none';
                 pauseBtn.style.display = 'none';
             }
 
