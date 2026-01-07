@@ -286,6 +286,8 @@
         let lookTouchId = null;
         let lastTouchX = 0;
         let lastTouchY = 0;
+        let lastActionTime = 0;
+        const ACTION_COOLDOWN = 200; // ms between block actions
 
         const blockTypes = {
             1: { name: 'Grass', color: 0x4CAF50 },
@@ -883,6 +885,13 @@
         }
 
         function performBlockAction(button) {
+            // Prevent accidental block actions when selecting blocks
+            const now = Date.now();
+            if (now - lastActionTime < ACTION_COOLDOWN) {
+                return;
+            }
+            lastActionTime = now;
+
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
             const intersects = raycaster.intersectObjects(Object.values(blocks));
 
