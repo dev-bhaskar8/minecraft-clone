@@ -75,11 +75,133 @@
         #instructions button:hover {
             background: #45a049;
         }
+
+        /* Mobile Controls */
+        .mobile-controls {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 90;
+        }
+
+        .joystick-container {
+            position: fixed;
+            bottom: 140px;
+            left: 20px;
+            width: 120px;
+            height: 120px;
+            pointer-events: auto;
+        }
+
+        .joystick-base {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            position: relative;
+        }
+
+        .joystick-stick {
+            width: 50%;
+            height: 50%;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            position: absolute;
+            top: 25%;
+            left: 25%;
+            transition: transform 0.05s;
+        }
+
+        .action-buttons {
+            position: fixed;
+            bottom: 140px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: auto;
+        }
+
+        .action-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-shadow: 0 0 3px black;
+        }
+
+        .action-btn:active {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        .jump-btn {
+            width: 80px;
+            height: 50px;
+            border-radius: 10px;
+        }
+
+        @media (max-width: 768px) {
+            #instructions p {
+                display: none;
+            }
+
+            #instructions .mobile-instructions {
+                display: block;
+                margin: 10px 0;
+                font-size: 14px;
+            }
+
+            .mobile-controls {
+                display: block;
+            }
+
+            #hotbar {
+                bottom: 10px;
+                gap: 3px;
+            }
+
+            .slot {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+        }
+
+        .mobile-instructions {
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div id="crosshair" class="hidden">+</div>
     <div id="hotbar"></div>
+
+    <!-- Mobile Controls -->
+    <div class="mobile-controls">
+        <div class="joystick-container">
+            <div class="joystick-base">
+                <div class="joystick-stick" id="joystickStick"></div>
+            </div>
+        </div>
+        <div class="action-buttons">
+            <button class="action-btn" id="destroyBtn">Break</button>
+            <button class="action-btn jump-btn" id="jumpBtn">Jump</button>
+            <button class="action-btn" id="placeBtn">Place</button>
+        </div>
+    </div>
+
     <div id="instructions">
         <h2 id="title">Minecraft Clone</h2>
         <p id="status">Click to start</p>
@@ -87,6 +209,8 @@
         <p>Space - Jump | Left Click - Destroy | Right Click - Place</p>
         <p>1-7 - Select Block Type | Scroll - Cycle</p>
         <p>ESC - Pause/Resume</p>
+        <p class="mobile-instructions">Drag to look | Use joystick to move</p>
+        <p class="mobile-instructions">Tap hotbar to select blocks</p>
         <button id="startBtn" onclick="resumeGame()">Start Game</button>
     </div>
 
@@ -111,6 +235,13 @@
         let direction = new THREE.Vector3();
         let euler = new THREE.Euler(0, 0, 0, 'YXZ');
         const raycaster = new THREE.Raycaster();
+
+        // Mobile detection and touch state
+        const isMobile = window.innerWidth <= 768 || 'ontouchstart' in window;
+        let joystickTouchId = null;
+        let lookTouchId = null;
+        let lastTouchX = 0;
+        let lastTouchY = 0;
 
         const blockTypes = {
             1: { name: 'Grass', color: 0x4CAF50 },
@@ -449,6 +580,7 @@
         }
 
         function setupControls() {
+            // Desktop keyboard/mouse controls
             document.addEventListener('keydown', (e) => {
                 if (!isPlaying) return;
                 switch(e.code) {
