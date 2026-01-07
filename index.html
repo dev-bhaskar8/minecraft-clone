@@ -79,6 +79,7 @@
         let water;
         let time = 0;
         let lastTime = performance.now();
+        let waterUpdateTimer = 0;
         let selectedBlockType = 1;
         let isPlaying = false;
         let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
@@ -610,7 +611,11 @@
                 }
             }
 
-            updateWaterPhysics(delta);
+            waterUpdateTimer += delta;
+            if (waterUpdateTimer >= 0.2) {
+                waterUpdateTimer = 0;
+                updateWaterPhysics();
+            }
 
             clouds.forEach(cloud => {
                 cloud.position.x += cloud.userData.speed * delta * 60;
@@ -625,36 +630,61 @@
             renderer.render(scene, camera);
         }
 
-        function updateWaterPhysics(delta) {
-            const waterBlocks = Object.entries(blocks).filter(([_, block]) => block.userData.type === 7);
+        function updateWaterPhysics() {
+            const moves = [];
 
-            waterBlocks.forEach(([key, block]) => {
+            Object.entries(blocks).forEach(([key, block]) => {
+                if (block.userData.type !== 7) return;
+
                 const { x, y, z } = block.userData;
 
                 const belowKey = `${x},${y-1},${z}`;
                 if (!blocks[belowKey] && y > 0) {
-                    removeBlock(x, y, z);
-                    createBlock(x, y - 1, z, 7);
+                    moves.push({ from: key, to: `${x},${y-1},${z}`, type: 'down' });
                 } else {
                     const directions = [
                         [1, 0], [-1, 0], [0, 1], [0, -1]
                     ];
 
-                    const canSpread = [];
-                    directions.forEach(([dx, dz]) => {
+                    for (const [dx, dz] of directions) {
                         const sideKey = `${x+dx},${y},${z+dz}`;
                         if (!blocks[sideKey]) {
-                            canSpread.push([dx, dz]);
+                            const belowSideKey = `${x+dx},${y-1},${z+dz}`;
+                            const belowSideEmpty = y > 0 && !blocks[belowSideKey];
+                            moves.push({
+                                from: key,
+                                to: sideKey,
+                                type: belowSideEmpty ? 'side-fall' : 'side',
+                                priority: belowSideEmpty ? 1 : 0
+                            });
                         }
-                    });
-
-                    if (canSpread.length > 0 && Math.random() < 0.3) {
-                        const [dx, dz] = canSpread[Math.floor(Math.random() * canSpread.length)];
-                        removeBlock(x, y, z);
-                        createBlock(x + dx, y, z + dz, 7);
                     }
                 }
             });
+
+            moves.sort((a, b) => {
+                if (a.type === 'down') return -1;
+                if (b.type === 'down') return 1;
+                return b.priority - a.priority;
+            });
+
+            const processed = new Set();
+            for (const move of moves) {
+                if (processed.has(move.to)) continue;
+                if (!blocks[move.from]) continue;
+                if (blocks[move.to]) continue;
+
+                const block = blocks[move.from];
+                const { x, y, z, type } = block.userData;
+
+                removeBlock(x, y, z);
+                const [newX, newY, newZ] = move.to.split(',').map(Number);
+                createBlock(newX, newY, newZ, type);
+
+                processed.add(move.from);
+                processed.add(move.to);
+                break;
+            }
         }
 
         init();
