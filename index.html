@@ -94,7 +94,8 @@
             3: { name: 'Stone', color: 0x808080 },
             4: { name: 'Wood', color: 0xA0522D },
             5: { name: 'Leaves', color: 0x228B22 },
-            6: { name: 'Sand', color: 0xF4A460 }
+            6: { name: 'Sand', color: 0xF4A460 },
+            7: { name: 'Water', color: 0x0077be }
         };
 
         const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
@@ -165,7 +166,8 @@
             3: createTexture(3),
             4: createTexture(4),
             5: createTexture(5),
-            6: createTexture(6)
+            6: createTexture(6),
+            7: createTexture(7)
         };
 
         function init() {
@@ -359,7 +361,16 @@
             const key = `${x},${y},${z}`;
             if (blocks[key]) return;
 
-            const material = new THREE.MeshLambertMaterial({ map: blockTextures[type].texture });
+            let material;
+            if (type === 7) {
+                material = new THREE.MeshLambertMaterial({
+                    map: blockTextures[type].texture,
+                    transparent: true,
+                    opacity: 0.7
+                });
+            } else {
+                material = new THREE.MeshLambertMaterial({ map: blockTextures[type].texture });
+            }
             const cube = new THREE.Mesh(boxGeometry, material);
             cube.position.set(x + 0.5, y + 0.5, z + 0.5);
             cube.castShadow = true;
@@ -391,7 +402,7 @@
 
         function setupHotbar() {
             const hotbar = document.getElementById('hotbar');
-            for (let i = 1; i <= 6; i++) {
+            for (let i = 1; i <= 7; i++) {
                 const slot = document.createElement('div');
                 slot.className = i === selectedBlockType ? 'slot selected' : 'slot';
                 slot.style.backgroundImage = `url(${blockTextures[i].dataUrl})`;
@@ -422,7 +433,7 @@
                         }
                         break;
                     case 'Digit1': case 'Digit2': case 'Digit3':
-                    case 'Digit4': case 'Digit5': case 'Digit6':
+                    case 'Digit4': case 'Digit5': case 'Digit6': case 'Digit7':
                         selectedBlockType = parseInt(e.code.charAt(5));
                         updateHotbar();
                         break;
@@ -482,7 +493,7 @@
 
             document.addEventListener('wheel', (e) => {
                 if (!isPlaying) return;
-                selectedBlockType = ((selectedBlockType - 1 + (e.deltaY > 0 ? 1 : -1) + 6) % 6) + 1;
+                selectedBlockType = ((selectedBlockType - 1 + (e.deltaY > 0 ? 1 : -1) + 7) % 7) + 1;
                 updateHotbar();
             });
 
