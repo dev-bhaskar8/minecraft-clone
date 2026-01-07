@@ -17,6 +17,10 @@
             pointer-events: none;
             text-shadow: 0 0 3px black;
             z-index: 100;
+            transition: opacity 0.2s;
+        }
+        #crosshair.hidden {
+            opacity: 0;
         }
         #hotbar {
             position: fixed;
@@ -74,7 +78,7 @@
     </style>
 </head>
 <body>
-    <div id="crosshair">+</div>
+    <div id="crosshair" class="hidden">+</div>
     <div id="hotbar"></div>
     <div id="instructions">
         <h2 id="title">Minecraft Clone</h2>
@@ -549,6 +553,7 @@
 
         function resumeGame() {
             document.getElementById('instructions').style.display = 'none';
+            document.getElementById('crosshair').classList.remove('hidden');
             renderer.domElement.requestPointerLock();
             isPlaying = true;
             gameStarted = true;
@@ -562,12 +567,14 @@
             title.textContent = 'Paused';
             status.textContent = 'Click to resume';
             btn.textContent = 'Resume Game';
+            document.getElementById('crosshair').classList.add('hidden');
             document.getElementById('instructions').style.display = 'block';
         }
 
         document.addEventListener('pointerlockchange', () => {
             if (!document.pointerLockElement) {
                 isPlaying = false;
+                document.getElementById('crosshair').classList.add('hidden');
                 if (gameStarted) {
                     showPauseScreen();
                 } else {
@@ -578,6 +585,7 @@
                 }
             } else {
                 document.getElementById('instructions').style.display = 'none';
+                document.getElementById('crosshair').classList.remove('hidden');
             }
         });
 
