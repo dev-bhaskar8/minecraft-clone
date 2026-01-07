@@ -42,17 +42,34 @@
             position: fixed;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             color: white;
             padding: 40px;
             text-align: center;
             border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+        #instructions h2 {
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+        #instructions p {
+            margin: 8px 0;
+            color: rgba(255,255,255,0.8);
         }
         #instructions button {
             padding: 15px 30px;
             font-size: 18px;
             margin-top: 20px;
             cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background: #4CAF50;
+            color: white;
+            transition: background 0.2s;
+        }
+        #instructions button:hover {
+            background: #45a049;
         }
     </style>
 </head>
@@ -60,11 +77,13 @@
     <div id="crosshair">+</div>
     <div id="hotbar"></div>
     <div id="instructions">
-        <h2>Click to Play</h2>
+        <h2 id="title">Minecraft Clone</h2>
+        <p id="status">Click to start</p>
         <p>WASD - Move | Mouse - Look</p>
         <p>Space - Jump | Left Click - Destroy | Right Click - Place</p>
-        <p>1-6 - Select Block Type</p>
-        <button onclick="startGame()">Start Game</button>
+        <p>1-7 - Select Block Type | Scroll - Cycle</p>
+        <p>ESC - Pause/Resume</p>
+        <button id="startBtn" onclick="resumeGame()">Start Game</button>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -526,16 +545,39 @@
             document.addEventListener('contextmenu', (e) => e.preventDefault());
         }
 
-        function startGame() {
+        let gameStarted = false;
+
+        function resumeGame() {
             document.getElementById('instructions').style.display = 'none';
             renderer.domElement.requestPointerLock();
             isPlaying = true;
+            gameStarted = true;
+        }
+
+        function showPauseScreen() {
+            const title = document.getElementById('title');
+            const status = document.getElementById('status');
+            const btn = document.getElementById('startBtn');
+
+            title.textContent = 'Paused';
+            status.textContent = 'Click to resume';
+            btn.textContent = 'Resume Game';
+            document.getElementById('instructions').style.display = 'block';
         }
 
         document.addEventListener('pointerlockchange', () => {
             if (!document.pointerLockElement) {
                 isPlaying = false;
-                document.getElementById('instructions').style.display = 'block';
+                if (gameStarted) {
+                    showPauseScreen();
+                } else {
+                    document.getElementById('title').textContent = 'Minecraft Clone';
+                    document.getElementById('status').textContent = 'Click to start';
+                    document.getElementById('startBtn').textContent = 'Start Game';
+                    document.getElementById('instructions').style.display = 'block';
+                }
+            } else {
+                document.getElementById('instructions').style.display = 'none';
             }
         });
 
