@@ -152,10 +152,53 @@
             border-radius: 10px;
         }
 
+        .pause-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            font-size: 24px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+        }
+
         @media (max-width: 768px) {
             #instructions p {
                 display: none;
             }
+
+            #instructions .mobile-instructions {
+                display: block;
+                margin: 10px 0;
+                font-size: 14px;
+            }
+
+            .mobile-controls {
+                display: block;
+            }
+
+            .pause-btn {
+                display: flex;
+            }
+
+            #hotbar {
+                bottom: 10px;
+                gap: 3px;
+            }
+
+            .slot {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+        }
 
             #instructions .mobile-instructions {
                 display: block;
@@ -187,6 +230,7 @@
 <body>
     <div id="crosshair" class="hidden">+</div>
     <div id="hotbar"></div>
+    <button class="pause-btn" id="pauseBtn">II</button>
 
     <!-- Mobile Controls -->
     <div class="mobile-controls">
@@ -679,14 +723,230 @@
             });
 
             document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+            // Mobile touch controls
+            if (isMobile) {
+                setupMobileControls();
+                // Show pause button initially on mobile
+                document.getElementById('pauseBtn').style.display = 'flex';
+            }
         }
+
+        function setupMobileControls() {
+            // Joystick for movement
+            const joystickContainer = document.querySelector('.joystick-container');
+            const joystickStick = document.getElementById('joystickStick');
+            const joystickBase = document.querySelector('.joystick-base');
+
+            joystickContainer.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                joystickTouchId = touch.identifier;
+                updateJoystick(touch, joystickBase, joystickStick);
+            });
+
+            joystickContainer.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                for (let touch of e.touches) {
+                    if (touch.identifier === joystickTouchId) {
+                        updateJoystick(touch, joystickBase, joystickStick);
+                    }
+                }
+            });
+
+            joystickContainer.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                for (let touch of e.changedTouches) {
+                    if (touch.identifier === joystickTouchId) {
+                        joystickTouchId = null;
+                        joystickStick.style.transform = `translate(0px, 0px)`;
+                        moveForward = false;
+                        moveBackward = false;
+                        moveLeft = false;
+                        moveRight = false;
+                    }
+                }
+            });
+
+            // Camera look (screen drag)
+            document.addEventListener('touchstart', (e) => {
+                for (let touch of e.touches) {
+                    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                    if (!element || (
+                        !element.closest('.joystick-container') &&
+                        !element.closest('.action-buttons') &&
+                        !element.closest('#hotbar') &&
+                        !element.closest('#instructions')
+                    )) {
+                        lookTouchId = touch.identifier;
+                        lastTouchX = touch.clientX;
+                        lastTouchY = touch.clientY;
+                    }
+                }
+            });
+
+            document.addEventListener('touchmove', (e) => {
+                for (let touch of e.touches) {
+                    if (touch.identifier === lookTouchId) {
+                        const deltaX = touch.clientX - lastTouchX;
+                        const deltaY = touch.clientY - lastTouchY;
+                        lastTouchX = touch.clientX;
+                        lastTouchY = touch.clientY;
+
+                        euler.setFromQuaternion(camera.quaternion);
+                        euler.y -= deltaX * 0.005;
+                        euler.x -= deltaY * 0.005;
+                        euler.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, euler.x));
+                        camera.quaternion.setFromEuler(euler);
+                    }
+                }
+            });
+
+            document.addEventListener('touchend', (e) => {
+                for (let touch of e.changedTouches) {
+                    if (touch.identifier === lookTouchId) {
+                        lookTouchId = null;
+                    }
+                }
+            });
+
+            // Jump button
+            const jumpBtn = document.getElementById('jumpBtn');
+            jumpBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (isPlaying && canJump) {
+                    velocity.y = 10;
+                    canJump = false;
+                }
+            });
+
+            // Destroy button
+            const destroyBtn = document.getElementById('destroyBtn');
+            destroyBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (!isPlaying) return;
+                performBlockAction(0);
+            });
+
+            // Place button
+            const placeBtn = document.getElementById('placeBtn');
+            placeBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (!isPlaying) return;
+                performBlockAction(2);
+            });
+
+            // Hotbar tap for block selection
+            document.getElementById('hotbar').addEventListener('click', (e) => {
+                const slot = e.target.closest('.slot');
+                if (slot) {
+                    selectedBlockType = parseInt(slot.dataset.type);
+                    updateHotbar();
+                }
+            });
+
+            // Pause button for mobile
+            const pauseBtn = document.getElementById('pauseBtn');
+            pauseBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (isPlaying) {
+                    isPlaying = false;
+                    document.getElementById('crosshair').classList.add('hidden');
+                    showPauseScreen();
+                }
+            });
+        }
+
+        function updateJoystick(touch, base, stick) {
+            const rect = base.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            const maxDistance = rect.width / 2 - stick.offsetWidth / 2;
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance > maxDistance) {
+                dx = (dx / distance) * maxDistance;
+                dy = (dy / distance) * maxDistance;
+            }
+
+            stick.style.transform = `translate(${dx}px, ${dy}px)`;
+
+            // Update movement state
+            const threshold = 10;
+            moveForward = dy < -threshold;
+            moveBackward = dy > threshold;
+            moveLeft = dx < -threshold;
+            moveRight = dx > threshold;
+        }
+
+        function performBlockAction(button) {
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            const intersects = raycaster.intersectObjects(Object.values(blocks));
+
+            if (intersects.length > 0 && intersects[0].distance < 8) {
+                const hit = intersects[0];
+                const { x, y, z } = hit.object.userData;
+
+                if (button === 0) {
+                    removeBlock(x, y, z);
+                } else if (button === 2) {
+                    const normal = hit.face.normal;
+                    const baseX = x + Math.round(normal.x);
+                    const baseY = y + Math.round(normal.y);
+                    const baseZ = z + Math.round(normal.z);
+
+                    const playerBox = new THREE.Box3(
+                        new THREE.Vector3(camera.position.x - 0.3, camera.position.y - 1.5, camera.position.z - 0.3),
+                        new THREE.Vector3(camera.position.x + 0.3, camera.position.y + 0.3, camera.position.z + 0.3)
+                    );
+
+                    if (selectedBlockType === 7) {
+                        let count = 0;
+                        for (let dx = -2; dx <= 2 && count < 15; dx++) {
+                            for (let dz = -1; dz <= 1 && count < 15; dz++) {
+                                const newX = baseX + dx;
+                                const newY = baseY;
+                                const newZ = baseZ + dz;
+                                const blockBox = new THREE.Box3(
+                                    new THREE.Vector3(newX, newY, newZ),
+                                    new THREE.Vector3(newX + 1, newY + 1, newZ + 1)
+                                );
+                                if (!playerBox.intersectsBox(blockBox) && !blocks[`${newX},${newY},${newZ}`]) {
+                                    createBlock(newX, newY, newZ, selectedBlockType);
+                                    count++;
+                                }
+                            }
+                        }
+                    } else {
+                        const blockBox = new THREE.Box3(
+                            new THREE.Vector3(baseX, baseY, baseZ),
+                            new THREE.Vector3(baseX + 1, baseY + 1, baseZ + 1)
+                        );
+                        if (!playerBox.intersectsBox(blockBox)) {
+                            createBlock(baseX, baseY, baseZ, selectedBlockType);
+                        }
+                    }
+                }
+            }
+        }
+
 
         let gameStarted = false;
 
         function resumeGame() {
             document.getElementById('instructions').style.display = 'none';
             document.getElementById('crosshair').classList.remove('hidden');
-            renderer.domElement.requestPointerLock();
+
+            // Show mobile pause button
+            if (isMobile) {
+                document.getElementById('pauseBtn').style.display = 'flex';
+            } else {
+                renderer.domElement.requestPointerLock();
+            }
+
             isPlaying = true;
             gameStarted = true;
         }
@@ -695,15 +955,25 @@
             const title = document.getElementById('title');
             const status = document.getElementById('status');
             const btn = document.getElementById('startBtn');
+            const pauseBtn = document.getElementById('pauseBtn');
 
             title.textContent = 'Paused';
             status.textContent = 'Click to resume';
             btn.textContent = 'Resume Game';
             document.getElementById('crosshair').classList.add('hidden');
+
+            // Hide mobile pause button when paused
+            if (isMobile) {
+                pauseBtn.style.display = 'none';
+            }
+
             document.getElementById('instructions').style.display = 'block';
         }
 
         document.addEventListener('pointerlockchange', () => {
+            // Only handle pointer lock changes on desktop
+            if (isMobile) return;
+
             if (!document.pointerLockElement) {
                 isPlaying = false;
                 document.getElementById('crosshair').classList.add('hidden');
