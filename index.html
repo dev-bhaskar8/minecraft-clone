@@ -88,7 +88,6 @@
         let direction = new THREE.Vector3();
         let euler = new THREE.Euler(0, 0, 0, 'YXZ');
         const raycaster = new THREE.Raycaster();
-        let waterDependencyGraph = new Map();
 
         const blockTypes = {
             1: { name: 'Grass', color: 0x4CAF50 },
@@ -359,7 +358,7 @@
             }
         }
 
-        function createBlock(x, y, z, type, isWaterSource = false) {
+        function createBlock(x, y, z, type) {
             const key = `${x},${y},${z}`;
             if (blocks[key]) return;
 
@@ -368,11 +367,10 @@
             let receiveShadow = true;
 
             if (type === 7) {
-                const opacity = isWaterSource ? 0.6 : 0.4;
                 material = new THREE.MeshLambertMaterial({
                     map: blockTextures[type].texture,
                     transparent: true,
-                    opacity: opacity,
+                    opacity: 0.5,
                     side: THREE.DoubleSide
                 });
                 castShadow = false;
@@ -384,27 +382,18 @@
             cube.position.set(x + 0.5, y + 0.5, z + 0.5);
             cube.castShadow = castShadow;
             cube.receiveShadow = receiveShadow;
-            cube.userData = { x, y, z, type, isWaterSource, flowLevel: isWaterSource ? 0 : 7, sourceKey: null };
+            cube.userData = { x, y, z, type };
             scene.add(cube);
             blocks[key] = cube;
 
             const spatialKey = `${Math.floor(x)},${Math.floor(z)}`;
             if (!spatialMap[spatialKey]) spatialMap[spatialKey] = [];
             spatialMap[spatialKey].push(key);
-
-            if (type === 7 && !isWaterSource) {
-                if (!waterDependencyGraph.has(key)) {
-                    waterDependencyGraph.set(key, new Set());
-                }
-            }
         }
 
         function removeBlock(x, y, z) {
             const key = `${x},${y},${z}`;
             if (blocks[key]) {
-                const isWater = blocks[key].userData.type === 7;
-                const isSource = blocks[key].userData.isWaterSource;
-
                 blocks[key].material.dispose();
                 scene.remove(blocks[key]);
 
@@ -415,44 +404,6 @@
                 }
 
                 delete blocks[key];
-
-                if (isWater && isSource) {
-                    removeDependentWater(key);
-                }
-
-                waterDependencyGraph.delete(key);
-                for (const deps of waterDependencyGraph.values()) {
-                    deps.delete(key);
-                }
-            }
-        }
-
-        function removeDependentWater(sourceKey) {
-            const toRemove = [];
-            const visited = new Set();
-
-            const checkDependents = (key) => {
-                if (visited.has(key)) return;
-                visited.add(key);
-
-                for (const [blockKey, deps] of waterDependencyGraph.entries()) {
-                    if (deps.has(key) && blocks[blockKey]) {
-                        const sourceKey2 = blocks[blockKey].userData.sourceKey;
-                        if (sourceKey2 === sourceKey || !sourceKey2) {
-                            toRemove.push(blockKey);
-                            checkDependents(blockKey);
-                        }
-                    }
-                }
-            };
-
-            checkDependents(sourceKey);
-
-            for (const key of toRemove) {
-                if (blocks[key]) {
-                    const { x, y, z } = blocks[key].userData;
-                    removeBlock(x, y, z);
-                }
             }
         }
 
@@ -527,22 +478,40 @@
                         removeBlock(x, y, z);
                     } else if (e.button === 2) {
                         const normal = hit.face.normal;
-                        const newX = x + Math.round(normal.x);
-                        const newY = y + Math.round(normal.y);
-                        const newZ = z + Math.round(normal.z);
+                        const baseX = x + Math.round(normal.x);
+                        const baseY = y + Math.round(normal.y);
+                        const baseZ = z + Math.round(normal.z);
 
                         const playerBox = new THREE.Box3(
                             new THREE.Vector3(camera.position.x - 0.3, camera.position.y - 1.5, camera.position.z - 0.3),
                             new THREE.Vector3(camera.position.x + 0.3, camera.position.y + 0.3, camera.position.z + 0.3)
                         );
-                        const blockBox = new THREE.Box3(
-                            new THREE.Vector3(newX, newY, newZ),
-                            new THREE.Vector3(newX + 1, newY + 1, newZ + 1)
-                        );
 
-                        if (!playerBox.intersectsBox(blockBox)) {
-                            const isWaterSource = selectedBlockType === 7;
-                            createBlock(newX, newY, newZ, selectedBlockType, isWaterSource);
+                        if (selectedBlockType === 7) {
+                            let count = 0;
+                            for (let dx = -2; dx <= 2 && count < 15; dx++) {
+                                for (let dz = -1; dz <= 1 && count < 15; dz++) {
+                                    const newX = baseX + dx;
+                                    const newY = baseY;
+                                    const newZ = baseZ + dz;
+                                    const blockBox = new THREE.Box3(
+                                        new THREE.Vector3(newX, newY, newZ),
+                                        new THREE.Vector3(newX + 1, newY + 1, newZ + 1)
+                                    );
+                                    if (!playerBox.intersectsBox(blockBox) && !blocks[`${newX},${newY},${newZ}`]) {
+                                        createBlock(newX, newY, newZ, selectedBlockType);
+                                        count++;
+                                    }
+                                }
+                            }
+                        } else {
+                            const blockBox = new THREE.Box3(
+                                new THREE.Vector3(baseX, baseY, baseZ),
+                                new THREE.Vector3(baseX + 1, baseY + 1, baseZ + 1)
+                            );
+                            if (!playerBox.intersectsBox(blockBox)) {
+                                createBlock(baseX, baseY, baseZ, selectedBlockType);
+                            }
                         }
                     }
                 }
@@ -681,109 +650,59 @@
         }
 
         function updateWaterPhysics() {
-            const waterBlocks = Object.entries(blocks).filter(([_, block]) => block.userData.type === 7);
-            const toCreate = [];
+            const moves = [];
 
-            waterBlocks.forEach(([sourceKey, sourceBlock]) => {
-                const { x, y, z, isWaterSource, flowLevel } = sourceBlock.userData;
+            Object.entries(blocks).forEach(([key, block]) => {
+                if (block.userData.type !== 7) return;
 
-                if (!isWaterSource && flowLevel >= 7) return;
-
-                const directions = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-                for (const [dx, dz] of directions) {
-                    const sideKey = `${x+dx},${y},${z+dz}`;
-
-                    if (blocks[sideKey]) {
-                        const sideBlock = blocks[sideKey];
-                        if (sideBlock.userData.type === 7 && !sideBlock.userData.isWaterSource) {
-                            if (flowLevel < sideBlock.userData.flowLevel - 1) {
-                                sideBlock.userData.flowLevel = flowLevel + 1;
-                                sideBlock.userData.sourceKey = isWaterSource ? sourceKey : sourceBlock.userData.sourceKey;
-                                sideBlock.material.opacity = 0.6 - (sideBlock.userData.flowLevel * 0.03);
-
-                                if (waterDependencyGraph.has(sideKey)) {
-                                    waterDependencyGraph.get(sideKey).clear();
-                                }
-
-                                const sourceKeyToUse = isWaterSource ? sourceKey : sourceBlock.userData.sourceKey;
-                                if (sourceKeyToUse && waterDependencyGraph.has(sourceKeyToUse)) {
-                                    waterDependencyGraph.get(sourceKeyToUse).add(sideKey);
-                                } else if (sourceKeyToUse) {
-                                    waterDependencyGraph.set(sourceKeyToUse, new Set([sideKey]));
-                                }
-                            }
-                        }
-                    }
-                }
+                const { x, y, z } = block.userData;
 
                 const belowKey = `${x},${y-1},${z}`;
                 if (!blocks[belowKey] && y > 0) {
-                    toCreate.push({
-                        x: x,
-                        y: y - 1,
-                        z: z,
-                        type: 7,
-                        isWaterSource: false,
-                        flowLevel: flowLevel,
-                        sourceKey: isWaterSource ? sourceKey : sourceBlock.userData.sourceKey
-                    });
-                } else if (blocks[belowKey] && blocks[belowKey].userData.type !== 7) {
-                    let canSpreadHorizontally = true;
+                    moves.push({ from: key, to: `${x},${y-1},${z}`, type: 'down' });
+                } else {
+                    const directions = [
+                        [1, 0], [-1, 0], [0, 1], [0, -1]
+                    ];
+
                     for (const [dx, dz] of directions) {
                         const sideKey = `${x+dx},${y},${z+dz}`;
-                        if (blocks[sideKey] && blocks[sideKey].userData.type === 7) {
-                            canSpreadHorizontally = false;
-                            break;
-                        }
-                    }
-
-                    if (canSpreadHorizontally) {
-                        for (const [dx, dz] of directions) {
-                            const sideKey = `${x+dx},${y},${z+dz}`;
-                            if (blocks[sideKey]) continue;
-
-                            if (!isWaterSource && flowLevel >= 6) continue;
-
+                        if (!blocks[sideKey]) {
                             const belowSideKey = `${x+dx},${y-1},${z+dz}`;
                             const belowSideEmpty = y > 0 && !blocks[belowSideKey];
-
-                            if (!belowSideEmpty) {
-                                const newFlowLevel = isWaterSource ? 0 : flowLevel + 1;
-                                if (newFlowLevel <= 6) {
-                                    toCreate.push({
-                                        x: x + dx,
-                                        y: y,
-                                        z: z + dz,
-                                        type: 7,
-                                        isWaterSource: false,
-                                        flowLevel: newFlowLevel,
-                                        sourceKey: isWaterSource ? sourceKey : sourceBlock.userData.sourceKey
-                                    });
-                                }
-                            }
+                            moves.push({
+                                from: key,
+                                to: sideKey,
+                                type: belowSideEmpty ? 'side-fall' : 'side',
+                                priority: belowSideEmpty ? 1 : 0
+                            });
                         }
                     }
                 }
             });
 
-            for (const blockData of toCreate) {
-                const key = `${blockData.x},${blockData.y},${blockData.z}`;
-                if (blocks[key]) continue;
+            moves.sort((a, b) => {
+                if (a.type === 'down') return -1;
+                if (b.type === 'down') return 1;
+                return b.priority - a.priority;
+            });
 
-                createBlock(blockData.x, blockData.y, blockData.z, blockData.type, blockData.isWaterSource);
-                if (blocks[key]) {
-                    blocks[key].userData.flowLevel = blockData.flowLevel;
-                    blocks[key].userData.sourceKey = blockData.sourceKey;
-                    blocks[key].material.opacity = 0.6 - (blockData.flowLevel * 0.03);
+            const processed = new Set();
+            for (const move of moves) {
+                if (processed.has(move.to)) continue;
+                if (!blocks[move.from]) continue;
+                if (blocks[move.to]) continue;
 
-                    if (blockData.sourceKey) {
-                        if (waterDependencyGraph.has(blockData.sourceKey)) {
-                            waterDependencyGraph.get(blockData.sourceKey).add(key);
-                        } else {
-                            waterDependencyGraph.set(blockData.sourceKey, new Set([key]));
-                        }
-                    }
-                }
+                const block = blocks[move.from];
+                const { x, y, z, type } = block.userData;
+
+                removeBlock(x, y, z);
+                const [newX, newY, newZ] = move.to.split(',').map(Number);
+                createBlock(newX, newY, newZ, type);
+
+                processed.add(move.from);
+                processed.add(move.to);
+                break;
             }
         }
 
