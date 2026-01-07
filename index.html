@@ -88,6 +88,10 @@
             z-index: 90;
         }
 
+        .mobile-controls.visible {
+            display: block;
+        }
+
         .joystick-container {
             position: fixed;
             bottom: 140px;
@@ -180,10 +184,6 @@
                 font-size: 14px;
             }
 
-            .mobile-controls {
-                display: block;
-            }
-
             .pause-btn {
                 display: flex;
             }
@@ -198,32 +198,11 @@
                 height: 40px;
                 font-size: 18px;
             }
-        }
 
-            #instructions .mobile-instructions {
-                display: block;
-                margin: 10px 0;
-                font-size: 14px;
-            }
-
+            /* Keep mobile controls hidden initially */
             .mobile-controls {
-                display: block;
+                display: none !important;
             }
-
-            #hotbar {
-                bottom: 10px;
-                gap: 3px;
-            }
-
-            .slot {
-                width: 40px;
-                height: 40px;
-                font-size: 18px;
-            }
-        }
-
-        .mobile-instructions {
-            display: none;
         }
     </style>
 </head>
@@ -951,7 +930,7 @@
 
             // Show mobile controls
             if (isMobile) {
-                document.querySelector('.mobile-controls').style.display = 'block';
+                document.querySelector('.mobile-controls').classList.add('visible');
                 document.getElementById('pauseBtn').style.display = 'flex';
             } else {
                 renderer.domElement.requestPointerLock();
@@ -974,7 +953,7 @@
 
             // Hide all mobile controls when paused
             if (isMobile) {
-                document.querySelector('.mobile-controls').style.display = 'none';
+                document.querySelector('.mobile-controls').classList.remove('visible');
                 pauseBtn.style.display = 'none';
             }
 
