@@ -716,31 +716,6 @@
                     }
                 }
 
-                for (const [dx, dz] of directions) {
-                    const sideKey = `${x+dx},${y},${z+dz}`;
-                    if (blocks[sideKey]) continue;
-
-                    if (!isWaterSource && flowLevel >= 6) continue;
-
-                    const belowSideKey = `${x+dx},${y-1},${z+dz}`;
-                    const belowSideEmpty = y > 0 && !blocks[belowSideKey];
-
-                    if (!belowSideEmpty) {
-                        const newFlowLevel = isWaterSource ? 0 : flowLevel + 1;
-                        if (newFlowLevel <= 6) {
-                            toCreate.push({
-                                x: x + dx,
-                                y: y,
-                                z: z + dz,
-                                type: 7,
-                                isWaterSource: false,
-                                flowLevel: newFlowLevel,
-                                sourceKey: isWaterSource ? sourceKey : sourceBlock.userData.sourceKey
-                            });
-                        }
-                    }
-                }
-
                 const belowKey = `${x},${y-1},${z}`;
                 if (!blocks[belowKey] && y > 0) {
                     toCreate.push({
@@ -749,9 +724,45 @@
                         z: z,
                         type: 7,
                         isWaterSource: false,
-                        flowLevel: isWaterSource ? 0 : flowLevel,
+                        flowLevel: flowLevel,
                         sourceKey: isWaterSource ? sourceKey : sourceBlock.userData.sourceKey
                     });
+                } else if (blocks[belowKey] && blocks[belowKey].userData.type !== 7) {
+                    let canSpreadHorizontally = true;
+                    for (const [dx, dz] of directions) {
+                        const sideKey = `${x+dx},${y},${z+dz}`;
+                        if (blocks[sideKey] && blocks[sideKey].userData.type === 7) {
+                            canSpreadHorizontally = false;
+                            break;
+                        }
+                    }
+
+                    if (canSpreadHorizontally) {
+                        for (const [dx, dz] of directions) {
+                            const sideKey = `${x+dx},${y},${z+dz}`;
+                            if (blocks[sideKey]) continue;
+
+                            if (!isWaterSource && flowLevel >= 6) continue;
+
+                            const belowSideKey = `${x+dx},${y-1},${z+dz}`;
+                            const belowSideEmpty = y > 0 && !blocks[belowSideKey];
+
+                            if (!belowSideEmpty) {
+                                const newFlowLevel = isWaterSource ? 0 : flowLevel + 1;
+                                if (newFlowLevel <= 6) {
+                                    toCreate.push({
+                                        x: x + dx,
+                                        y: y,
+                                        z: z + dz,
+                                        type: 7,
+                                        isWaterSource: false,
+                                        flowLevel: newFlowLevel,
+                                        sourceKey: isWaterSource ? sourceKey : sourceBlock.userData.sourceKey
+                                    });
+                                }
+                            }
+                        }
+                    }
                 }
             });
 
