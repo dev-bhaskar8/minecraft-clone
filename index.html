@@ -814,11 +814,14 @@
             });
 
             // Hotbar tap for block selection
-            document.getElementById('hotbar').addEventListener('click', (e) => {
+            const hotbar = document.getElementById('hotbar');
+            hotbar.addEventListener('touchstart', (e) => {
+                e.preventDefault();
                 const slot = e.target.closest('.slot');
                 if (slot) {
                     selectedBlockType = parseInt(slot.dataset.type);
                     updateHotbar();
+                    lastActionTime = Date.now(); // Prevent action immediately after selection
                 }
             });
 
