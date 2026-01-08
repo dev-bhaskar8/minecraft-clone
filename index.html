@@ -17,6 +17,10 @@
             pointer-events: none;
             text-shadow: 0 0 3px black;
             z-index: 100;
+            transition: opacity 0.2s;
+        }
+        #crosshair.hidden {
+            opacity: 0;
         }
         #hotbar {
             position: fixed;
@@ -42,29 +46,213 @@
             position: fixed;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             color: white;
             padding: 40px;
             text-align: center;
             border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+        #instructions h2 {
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+        #instructions p {
+            margin: 8px 0;
+            color: rgba(255,255,255,0.8);
         }
         #instructions button {
             padding: 15px 30px;
             font-size: 18px;
             margin-top: 20px;
             cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background: #4CAF50;
+            color: white;
+            transition: background 0.2s;
+        }
+        #instructions button:hover {
+            background: #45a049;
+        }
+
+        .save-load-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+
+        .save-load-buttons button {
+            padding: 12px 20px;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        #loadFileInput {
+            display: none;
+        }
+
+        /* Mobile Controls */
+        .mobile-controls {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 90;
+        }
+
+        .mobile-controls.visible {
+            display: block;
+        }
+
+        .joystick-container {
+            position: fixed;
+            bottom: 140px;
+            left: 20px;
+            width: 120px;
+            height: 120px;
+            pointer-events: auto;
+        }
+
+        .joystick-base {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            position: relative;
+        }
+
+        .joystick-stick {
+            width: 50%;
+            height: 50%;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            position: absolute;
+            top: 25%;
+            left: 25%;
+            transition: transform 0.05s;
+        }
+
+        .action-buttons {
+            position: fixed;
+            bottom: 140px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: auto;
+        }
+
+        .action-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-shadow: 0 0 3px black;
+        }
+
+        .action-btn:active {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        .jump-btn {
+            width: 80px;
+            height: 50px;
+            border-radius: 10px;
+        }
+
+        .pause-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            font-size: 24px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+        }
+
+        @media (max-width: 768px) {
+            #instructions p {
+                display: none;
+            }
+
+            #instructions .mobile-instructions {
+                display: block;
+                margin: 10px 0;
+                font-size: 14px;
+            }
+
+            .pause-btn {
+                display: flex;
+            }
+
+            #hotbar {
+                bottom: 10px;
+                gap: 3px;
+            }
+
+            .slot {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+
         }
     </style>
 </head>
 <body>
-    <div id="crosshair">+</div>
+    <div id="crosshair" class="hidden">+</div>
     <div id="hotbar"></div>
+    <button class="pause-btn" id="pauseBtn">II</button>
+
+    <!-- Mobile Controls -->
+    <div class="mobile-controls">
+        <div class="joystick-container">
+            <div class="joystick-base">
+                <div class="joystick-stick" id="joystickStick"></div>
+            </div>
+        </div>
+        <div class="action-buttons">
+            <button class="action-btn" id="destroyBtn">Break</button>
+            <button class="action-btn jump-btn" id="jumpBtn">Jump</button>
+            <button class="action-btn" id="placeBtn">Place</button>
+        </div>
+    </div>
+
     <div id="instructions">
-        <h2>Click to Play</h2>
+        <h2 id="title">Minecraft Clone</h2>
+        <p id="status">Click to start</p>
         <p>WASD - Move | Mouse - Look</p>
         <p>Space - Jump | Left Click - Destroy | Right Click - Place</p>
-        <p>1-6 - Select Block Type</p>
-        <button onclick="startGame()">Start Game</button>
+        <p>1-7 - Select Block Type | Scroll - Cycle</p>
+        <p>ESC - Pause/Resume</p>
+        <p class="mobile-instructions">Drag to look | Use joystick to move</p>
+        <p class="mobile-instructions">Tap hotbar to select blocks</p>
+        <button id="startBtn" onclick="resumeGame()">Start Game</button>
+        <div class="save-load-buttons">
+            <button onclick="saveWorld()">Save World</button>
+            <button onclick="document.getElementById('loadFileInput').click()">Load World</button>
+        </div>
+        <input type="file" id="loadFileInput" accept=".json" onchange="loadWorld(this.files[0])">
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -88,6 +276,15 @@
         let direction = new THREE.Vector3();
         let euler = new THREE.Euler(0, 0, 0, 'YXZ');
         const raycaster = new THREE.Raycaster();
+
+        // Mobile detection and touch state
+        const isMobile = window.innerWidth <= 768 || 'ontouchstart' in window;
+        let joystickTouchId = null;
+        let lookTouchId = null;
+        let lastTouchX = 0;
+        let lastTouchY = 0;
+        let lastActionTime = 0;
+        const ACTION_COOLDOWN = 200; // ms between block actions
 
         const blockTypes = {
             1: { name: 'Grass', color: 0x4CAF50 },
@@ -426,6 +623,7 @@
         }
 
         function setupControls() {
+            // Desktop keyboard/mouse controls
             document.addEventListener('keydown', (e) => {
                 if (!isPlaying) return;
                 switch(e.code) {
@@ -524,18 +722,283 @@
             });
 
             document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+            // Mobile touch controls
+            if (isMobile) {
+                setupMobileControls();
+                // Hide pause button initially on mobile
+                document.getElementById('pauseBtn').style.display = 'none';
+            }
         }
 
-        function startGame() {
+        function setupMobileControls() {
+            // Joystick for movement
+            const joystickContainer = document.querySelector('.joystick-container');
+            const joystickStick = document.getElementById('joystickStick');
+            const joystickBase = document.querySelector('.joystick-base');
+
+            joystickContainer.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                joystickTouchId = touch.identifier;
+                updateJoystick(touch, joystickBase, joystickStick);
+            });
+
+            joystickContainer.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                for (let touch of e.touches) {
+                    if (touch.identifier === joystickTouchId) {
+                        updateJoystick(touch, joystickBase, joystickStick);
+                    }
+                }
+            });
+
+            joystickContainer.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                for (let touch of e.changedTouches) {
+                    if (touch.identifier === joystickTouchId) {
+                        joystickTouchId = null;
+                        joystickStick.style.transform = `translate(0px, 0px)`;
+                        moveForward = false;
+                        moveBackward = false;
+                        moveLeft = false;
+                        moveRight = false;
+                    }
+                }
+            });
+
+            // Camera look (screen drag)
+            document.addEventListener('touchstart', (e) => {
+                for (let touch of e.touches) {
+                    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                    if (!element || (
+                        !element.closest('.joystick-container') &&
+                        !element.closest('.action-buttons') &&
+                        !element.closest('#hotbar') &&
+                        !element.closest('#instructions')
+                    )) {
+                        lookTouchId = touch.identifier;
+                        lastTouchX = touch.clientX;
+                        lastTouchY = touch.clientY;
+                    }
+                }
+            });
+
+            document.addEventListener('touchmove', (e) => {
+                for (let touch of e.touches) {
+                    if (touch.identifier === lookTouchId) {
+                        const deltaX = touch.clientX - lastTouchX;
+                        const deltaY = touch.clientY - lastTouchY;
+                        lastTouchX = touch.clientX;
+                        lastTouchY = touch.clientY;
+
+                        euler.setFromQuaternion(camera.quaternion);
+                        euler.y -= deltaX * 0.005;
+                        euler.x -= deltaY * 0.005;
+                        euler.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, euler.x));
+                        camera.quaternion.setFromEuler(euler);
+                    }
+                }
+            });
+
+            document.addEventListener('touchend', (e) => {
+                for (let touch of e.changedTouches) {
+                    if (touch.identifier === lookTouchId) {
+                        lookTouchId = null;
+                    }
+                }
+            });
+
+            // Jump button
+            const jumpBtn = document.getElementById('jumpBtn');
+            jumpBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (isPlaying && canJump) {
+                    velocity.y = 10;
+                    canJump = false;
+                }
+            });
+
+            // Destroy button
+            const destroyBtn = document.getElementById('destroyBtn');
+            destroyBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (!isPlaying) return;
+                performBlockAction(0);
+            });
+
+            // Place button
+            const placeBtn = document.getElementById('placeBtn');
+            placeBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (!isPlaying) return;
+                performBlockAction(2);
+            });
+
+            // Hotbar tap for block selection
+            const hotbar = document.getElementById('hotbar');
+            hotbar.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const slot = e.target.closest('.slot');
+                if (slot) {
+                    selectedBlockType = parseInt(slot.dataset.type);
+                    updateHotbar();
+                    lastActionTime = Date.now(); // Prevent action immediately after selection
+                }
+            });
+
+            // Pause button for mobile
+            const pauseBtn = document.getElementById('pauseBtn');
+            pauseBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (isPlaying) {
+                    isPlaying = false;
+                    document.getElementById('crosshair').classList.add('hidden');
+                    showPauseScreen();
+                }
+            });
+        }
+
+        function updateJoystick(touch, base, stick) {
+            const rect = base.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            const maxDistance = rect.width / 2 - stick.offsetWidth / 2;
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance > maxDistance) {
+                dx = (dx / distance) * maxDistance;
+                dy = (dy / distance) * maxDistance;
+            }
+
+            stick.style.transform = `translate(${dx}px, ${dy}px)`;
+
+            // Update movement state
+            const threshold = 10;
+            moveForward = dy < -threshold;
+            moveBackward = dy > threshold;
+            moveLeft = dx < -threshold;
+            moveRight = dx > threshold;
+        }
+
+        function performBlockAction(button) {
+            // Prevent accidental block actions when selecting blocks
+            const now = Date.now();
+            if (now - lastActionTime < ACTION_COOLDOWN) {
+                return;
+            }
+            lastActionTime = now;
+
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            const intersects = raycaster.intersectObjects(Object.values(blocks));
+
+            if (intersects.length > 0 && intersects[0].distance < 8) {
+                const hit = intersects[0];
+                const { x, y, z } = hit.object.userData;
+
+                if (button === 0) {
+                    removeBlock(x, y, z);
+                } else if (button === 2) {
+                    const normal = hit.face.normal;
+                    const baseX = x + Math.round(normal.x);
+                    const baseY = y + Math.round(normal.y);
+                    const baseZ = z + Math.round(normal.z);
+
+                    const playerBox = new THREE.Box3(
+                        new THREE.Vector3(camera.position.x - 0.3, camera.position.y - 1.5, camera.position.z - 0.3),
+                        new THREE.Vector3(camera.position.x + 0.3, camera.position.y + 0.3, camera.position.z + 0.3)
+                    );
+
+                    if (selectedBlockType === 7) {
+                        let count = 0;
+                        for (let dx = -2; dx <= 2 && count < 15; dx++) {
+                            for (let dz = -1; dz <= 1 && count < 15; dz++) {
+                                const newX = baseX + dx;
+                                const newY = baseY;
+                                const newZ = baseZ + dz;
+                                const blockBox = new THREE.Box3(
+                                    new THREE.Vector3(newX, newY, newZ),
+                                    new THREE.Vector3(newX + 1, newY + 1, newZ + 1)
+                                );
+                                if (!playerBox.intersectsBox(blockBox) && !blocks[`${newX},${newY},${newZ}`]) {
+                                    createBlock(newX, newY, newZ, selectedBlockType);
+                                    count++;
+                                }
+                            }
+                        }
+                    } else {
+                        const blockBox = new THREE.Box3(
+                            new THREE.Vector3(baseX, baseY, baseZ),
+                            new THREE.Vector3(baseX + 1, baseY + 1, baseZ + 1)
+                        );
+                        if (!playerBox.intersectsBox(blockBox)) {
+                            createBlock(baseX, baseY, baseZ, selectedBlockType);
+                        }
+                    }
+                }
+            }
+        }
+
+
+        let gameStarted = false;
+
+        function resumeGame() {
             document.getElementById('instructions').style.display = 'none';
-            renderer.domElement.requestPointerLock();
+            document.getElementById('crosshair').classList.remove('hidden');
+
+            // Show mobile controls
+            if (isMobile) {
+                document.querySelector('.mobile-controls').classList.add('visible');
+                document.getElementById('pauseBtn').style.display = 'flex';
+            } else {
+                renderer.domElement.requestPointerLock();
+            }
+
             isPlaying = true;
+            gameStarted = true;
+        }
+
+        function showPauseScreen() {
+            const title = document.getElementById('title');
+            const status = document.getElementById('status');
+            const btn = document.getElementById('startBtn');
+            const pauseBtn = document.getElementById('pauseBtn');
+
+            title.textContent = 'Paused';
+            status.textContent = 'Click to resume';
+            btn.textContent = 'Resume Game';
+            document.getElementById('crosshair').classList.add('hidden');
+            pauseBtn.style.display = 'none';
+
+            // Hide all mobile controls when paused
+            if (isMobile) {
+                document.querySelector('.mobile-controls').classList.remove('visible');
+            }
+
+            document.getElementById('instructions').style.display = 'block';
         }
 
         document.addEventListener('pointerlockchange', () => {
+            // Only handle pointer lock changes on desktop
+            if (isMobile) return;
+
             if (!document.pointerLockElement) {
                 isPlaying = false;
-                document.getElementById('instructions').style.display = 'block';
+                document.getElementById('crosshair').classList.add('hidden');
+                if (gameStarted) {
+                    showPauseScreen();
+                } else {
+                    document.getElementById('title').textContent = 'Minecraft Clone';
+                    document.getElementById('status').textContent = 'Click to start';
+                    document.getElementById('startBtn').textContent = 'Start Game';
+                    document.getElementById('instructions').style.display = 'block';
+                }
+            } else {
+                document.getElementById('instructions').style.display = 'none';
+                document.getElementById('crosshair').classList.remove('hidden');
             }
         });
 
@@ -592,7 +1055,7 @@
                 direction.normalize();
 
                 if (moveForward || moveBackward) velocity.z -= direction.z * 100.0 * delta;
-                if (moveLeft || moveRight) velocity.x -= direction.x * 100.0 * delta;
+                if (moveLeft || moveRight) velocity.x += direction.x * 100.0 * delta;
 
                 const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
                 forward.y = 0;
@@ -704,6 +1167,139 @@
                 processed.add(move.to);
                 break;
             }
+        }
+
+        function saveWorld() {
+            const saveData = {
+                version: "1.0",
+                timestamp: Date.now(),
+                player: {
+                    position: camera.position.toArray(),
+                    quaternion: camera.quaternion.toArray(),
+                    selectedBlockType: selectedBlockType
+                },
+                blocks: {},
+                spatialMap: {},
+                clouds: clouds.map(c => ({
+                    position: c.position.toArray(),
+                    speed: c.userData.speed
+                })),
+                time: time
+            };
+
+            // Serialize all blocks
+            Object.entries(blocks).forEach(([key, block]) => {
+                saveData.blocks[key] = {
+                    x: block.userData.x,
+                    y: block.userData.y,
+                    z: block.userData.z,
+                    type: block.userData.type
+                };
+            });
+
+            // Save spatial map
+            Object.entries(spatialMap).forEach(([key, value]) => {
+                saveData.spatialMap[key] = value;
+            });
+
+            // Download as JSON file
+            const blob = new Blob([JSON.stringify(saveData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `minecraft-world-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function loadWorld(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const saveData = JSON.parse(e.target.result);
+
+                    // Clear current world
+                    Object.values(blocks).forEach(block => {
+                        block.material.dispose();
+                        scene.remove(block);
+                    });
+                    blocks = {};
+                    spatialMap = {};
+
+                    // Load blocks
+                    Object.entries(saveData.blocks).forEach(([key, blockData]) => {
+                        createBlock(blockData.x, blockData.y, blockData.z, blockData.type);
+                    });
+
+                    // Load spatial map
+                    spatialMap = saveData.spatialMap || {};
+
+                    // Load player state
+                    if (saveData.player) {
+                        camera.position.fromArray(saveData.player.position);
+                        camera.quaternion.fromArray(saveData.player.quaternion);
+                        selectedBlockType = saveData.player.selectedBlockType || 1;
+                        updateHotbar();
+                    }
+
+                    // Load clouds
+                    clouds.forEach(cloud => scene.remove(cloud));
+                    clouds = [];
+                    if (saveData.clouds) {
+                        saveData.clouds.forEach(cloudData => {
+                            const cloudGroup = new THREE.Group();
+                            const cloudMaterial = new THREE.MeshBasicMaterial({
+                                color: 0xffffff,
+                                transparent: true,
+                                opacity: 0.95
+                            });
+                            const sphereCount = 5 + Math.floor(Math.random() * 4);
+                            for (let s = 0; s < sphereCount; s++) {
+                                const radius = 2 + Math.random() * 2;
+                                const sphere = new THREE.Mesh(
+                                    new THREE.SphereGeometry(radius, 16, 16),
+                                    cloudMaterial
+                                );
+                                sphere.position.set(
+                                    Math.random() * 8 - 4,
+                                    Math.random() * 2 - 1,
+                                    Math.random() * 8 - 4
+                                );
+                                sphere.scale.y = 0.6;
+                                cloudGroup.add(sphere);
+                            }
+                            cloudGroup.position.fromArray(cloudData.position);
+                            cloudGroup.userData = { speed: cloudData.speed };
+                            scene.add(cloudGroup);
+                            clouds.push(cloudGroup);
+                        });
+                    }
+
+                    // Load time
+                    time = saveData.time || 0;
+
+                    // Reset file input
+                    document.getElementById('loadFileInput').value = '';
+
+                    // Resume game
+                    document.getElementById('instructions').style.display = 'none';
+                    document.getElementById('crosshair').classList.remove('hidden');
+                    if (isMobile) {
+                        document.querySelector('.mobile-controls').classList.add('visible');
+                        document.getElementById('pauseBtn').style.display = 'flex';
+                    } else {
+                        renderer.domElement.requestPointerLock();
+                    }
+                    isPlaying = true;
+                    gameStarted = true;
+
+                } catch (error) {
+                    alert('Failed to load world: ' + error.message);
+                    document.getElementById('loadFileInput').value = '';
+                }
+            };
+            reader.readAsText(file);
         }
 
         init();
