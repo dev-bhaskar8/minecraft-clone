@@ -708,8 +708,8 @@
             // Mobile touch controls
             if (isMobile) {
                 setupMobileControls();
-                // Show pause button initially on mobile
-                document.getElementById('pauseBtn').style.display = 'flex';
+                // Hide pause button initially on mobile
+                document.getElementById('pauseBtn').style.display = 'none';
             }
         }
 
@@ -950,11 +950,11 @@
             status.textContent = 'Click to resume';
             btn.textContent = 'Resume Game';
             document.getElementById('crosshair').classList.add('hidden');
+            pauseBtn.style.display = 'none';
 
             // Hide all mobile controls when paused
             if (isMobile) {
                 document.querySelector('.mobile-controls').classList.remove('visible');
-                pauseBtn.style.display = 'none';
             }
 
             document.getElementById('instructions').style.display = 'block';
