@@ -1034,7 +1034,7 @@
                 direction.normalize();
 
                 if (moveForward || moveBackward) velocity.z -= direction.z * 100.0 * delta;
-                if (moveLeft || moveRight) velocity.x -= direction.x * 100.0 * delta;
+                if (moveLeft || moveRight) velocity.x += direction.x * 100.0 * delta;
 
                 const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
                 forward.y = 0;
