@@ -76,6 +76,23 @@
             background: #45a049;
         }
 
+        .save-load-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+
+        .save-load-buttons button {
+            padding: 12px 20px;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        #loadFileInput {
+            display: none;
+        }
+
         /* Mobile Controls */
         .mobile-controls {
             display: none;
@@ -231,6 +248,11 @@
         <p class="mobile-instructions">Drag to look | Use joystick to move</p>
         <p class="mobile-instructions">Tap hotbar to select blocks</p>
         <button id="startBtn" onclick="resumeGame()">Start Game</button>
+        <div class="save-load-buttons">
+            <button onclick="saveWorld()">Save World</button>
+            <button onclick="document.getElementById('loadFileInput').click()">Load World</button>
+        </div>
+        <input type="file" id="loadFileInput" accept=".json" onchange="loadWorld(this.files[0])">
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -1145,6 +1167,139 @@
                 processed.add(move.to);
                 break;
             }
+        }
+
+        function saveWorld() {
+            const saveData = {
+                version: "1.0",
+                timestamp: Date.now(),
+                player: {
+                    position: camera.position.toArray(),
+                    quaternion: camera.quaternion.toArray(),
+                    selectedBlockType: selectedBlockType
+                },
+                blocks: {},
+                spatialMap: {},
+                clouds: clouds.map(c => ({
+                    position: c.position.toArray(),
+                    speed: c.userData.speed
+                })),
+                time: time
+            };
+
+            // Serialize all blocks
+            Object.entries(blocks).forEach(([key, block]) => {
+                saveData.blocks[key] = {
+                    x: block.userData.x,
+                    y: block.userData.y,
+                    z: block.userData.z,
+                    type: block.userData.type
+                };
+            });
+
+            // Save spatial map
+            Object.entries(spatialMap).forEach(([key, value]) => {
+                saveData.spatialMap[key] = value;
+            });
+
+            // Download as JSON file
+            const blob = new Blob([JSON.stringify(saveData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `minecraft-world-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function loadWorld(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const saveData = JSON.parse(e.target.result);
+
+                    // Clear current world
+                    Object.values(blocks).forEach(block => {
+                        block.material.dispose();
+                        scene.remove(block);
+                    });
+                    blocks = {};
+                    spatialMap = {};
+
+                    // Load blocks
+                    Object.entries(saveData.blocks).forEach(([key, blockData]) => {
+                        createBlock(blockData.x, blockData.y, blockData.z, blockData.type);
+                    });
+
+                    // Load spatial map
+                    spatialMap = saveData.spatialMap || {};
+
+                    // Load player state
+                    if (saveData.player) {
+                        camera.position.fromArray(saveData.player.position);
+                        camera.quaternion.fromArray(saveData.player.quaternion);
+                        selectedBlockType = saveData.player.selectedBlockType || 1;
+                        updateHotbar();
+                    }
+
+                    // Load clouds
+                    clouds.forEach(cloud => scene.remove(cloud));
+                    clouds = [];
+                    if (saveData.clouds) {
+                        saveData.clouds.forEach(cloudData => {
+                            const cloudGroup = new THREE.Group();
+                            const cloudMaterial = new THREE.MeshBasicMaterial({
+                                color: 0xffffff,
+                                transparent: true,
+                                opacity: 0.95
+                            });
+                            const sphereCount = 5 + Math.floor(Math.random() * 4);
+                            for (let s = 0; s < sphereCount; s++) {
+                                const radius = 2 + Math.random() * 2;
+                                const sphere = new THREE.Mesh(
+                                    new THREE.SphereGeometry(radius, 16, 16),
+                                    cloudMaterial
+                                );
+                                sphere.position.set(
+                                    Math.random() * 8 - 4,
+                                    Math.random() * 2 - 1,
+                                    Math.random() * 8 - 4
+                                );
+                                sphere.scale.y = 0.6;
+                                cloudGroup.add(sphere);
+                            }
+                            cloudGroup.position.fromArray(cloudData.position);
+                            cloudGroup.userData = { speed: cloudData.speed };
+                            scene.add(cloudGroup);
+                            clouds.push(cloudGroup);
+                        });
+                    }
+
+                    // Load time
+                    time = saveData.time || 0;
+
+                    // Reset file input
+                    document.getElementById('loadFileInput').value = '';
+
+                    // Resume game
+                    document.getElementById('instructions').style.display = 'none';
+                    document.getElementById('crosshair').classList.remove('hidden');
+                    if (isMobile) {
+                        document.querySelector('.mobile-controls').classList.add('visible');
+                        document.getElementById('pauseBtn').style.display = 'flex';
+                    } else {
+                        renderer.domElement.requestPointerLock();
+                    }
+                    isPlaying = true;
+                    gameStarted = true;
+
+                } catch (error) {
+                    alert('Failed to load world: ' + error.message);
+                    document.getElementById('loadFileInput').value = '';
+                }
+            };
+            reader.readAsText(file);
         }
 
         init();
