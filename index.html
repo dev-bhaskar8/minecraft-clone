@@ -574,6 +574,159 @@
 
         }
 
+        /* World Board redesign - Full-screen & Grid */
+        #boardModal {
+            background: #0a0e14;
+        }
+
+        .board-card {
+            width: 100vw;
+            height: 100vh;
+            max-width: none;
+            max-height: none;
+            border-radius: 0;
+            background: #0a0e14;
+            display: flex;
+            flex-direction: column;
+            border: none;
+        }
+
+        .board-header {
+            padding: 24px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(16, 18, 22, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+        }
+
+        .board-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 24px;
+            padding: 40px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .world-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+        }
+
+        .world-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(82, 196, 87, 0.4);
+            background: rgba(82, 196, 87, 0.04);
+        }
+
+        .world-preview {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background-size: cover;
+            background-position: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            position: relative;
+        }
+
+        .world-meta {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .world-info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .world-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .world-builder {
+            font-size: 13px;
+            color: #58a4ff;
+        }
+
+        .world-rewards {
+            background: rgba(82, 196, 87, 0.15);
+            color: #52c457;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            border: 1px solid rgba(82, 196, 87, 0.3);
+        }
+
+        .world-actions {
+            margin-top: auto;
+            padding: 16px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .world-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            transition: all 0.15s ease;
+        }
+
+        .world-btn.primary {
+            background: #52c457;
+            border-color: #52c457;
+            color: #0a0e14;
+        }
+
+        .world-btn.primary:hover {
+            background: #62d467;
+        }
+
+        .world-btn:not(.primary):hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .board-footer-full {
+            padding: 24px 40px;
+            background: rgba(16, 18, 22, 0.8);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        @media (max-width: 768px) {
+
+            .board-header,
+            .board-footer-full {
+                padding: 16px 20px;
+            }
+
+            .board-grid {
+                padding: 20px;
+                gap: 16px;
+            }
+        }
+
         /* Desktop vs mobile hint blocks */
         .mobile-only {
             display: none;
@@ -712,6 +865,114 @@
             <button class="mini-btn" onclick="loadFromShareLinkPrompt()">Import Link/Code</button>
             <button class="mini-btn" onclick="openAgentKit()">SKILL.MD for your Claw bots</button>
             <button class="mini-btn" onclick="openMoltbookShare()">Share your world on Moltbook</button>
+            <button class="mini-btn" style="background: rgba(82, 196, 87, 0.2); border-color: rgba(82, 196, 87, 0.4);"
+                onclick="openWorldBoard()">🏆 World Board</button>
+        </div>
+    </div>
+
+    <div class="modal" id="boardModal" onclick="onBoardBackdrop(event)">
+        <div class="board-card" onclick="event.stopPropagation()">
+            <div class="board-header">
+                <div class="agent-title" style="font-size: 24px;">🏆 World Board</div>
+                <button class="agent-close" onclick="closeWorldBoard()">Close</button>
+            </div>
+
+            <div class="board-grid">
+                <!-- World 1 -->
+                <div class="world-card">
+                    <div class="world-preview" style="background-image: url('world-preview.png');"></div>
+                    <div class="world-meta">
+                        <div class="world-info-row">
+                            <div class="world-name">Emerald City</div>
+                            <div class="world-rewards">1,240 CRAFT</div>
+                        </div>
+                        <div class="world-builder">by @dev_king</div>
+                    </div>
+                    <div class="world-actions">
+                        <button class="world-btn primary">Play</button>
+                        <button class="world-btn">Details</button>
+                    </div>
+                </div>
+
+                <!-- World 2 -->
+                <div class="world-card">
+                    <div class="world-preview"
+                        style="background-image: url('world-preview.png'); filter: hue-rotate(90deg);"></div>
+                    <div class="world-meta">
+                        <div class="world-info-row">
+                            <div class="world-name">Sky Fortress</div>
+                            <div class="world-rewards">890 CRAFT</div>
+                        </div>
+                        <div class="world-builder">by @voxel_master</div>
+                    </div>
+                    <div class="world-actions">
+                        <button class="world-btn primary">Play</button>
+                        <button class="world-btn">Details</button>
+                    </div>
+                </div>
+
+                <!-- World 3 -->
+                <div class="world-card">
+                    <div class="world-preview"
+                        style="background-image: url('world-preview.png'); filter: saturate(0.5) brightness(0.8);">
+                    </div>
+                    <div class="world-meta">
+                        <div class="world-info-row">
+                            <div class="world-name">Deep Sea Base</div>
+                            <div class="world-rewards">560 CRAFT</div>
+                        </div>
+                        <div class="world-builder">by @ocean_man</div>
+                    </div>
+                    <div class="world-actions">
+                        <button class="world-btn primary">Play</button>
+                        <button class="world-btn">Details</button>
+                    </div>
+                </div>
+
+                <!-- World 4 -->
+                <div class="world-card">
+                    <div class="world-preview"
+                        style="background-image: url('world-preview.png'); filter: hue-rotate(-45deg) contrast(1.2);">
+                    </div>
+                    <div class="world-meta">
+                        <div class="world-info-row">
+                            <div class="world-name">Lava Kingdom</div>
+                            <div class="world-rewards">320 CRAFT</div>
+                        </div>
+                        <div class="world-builder">by @fire_starter</div>
+                    </div>
+                    <div class="world-actions">
+                        <button class="world-btn primary">Play</button>
+                        <button class="world-btn">Details</button>
+                    </div>
+                </div>
+
+                <!-- World 5 -->
+                <div class="world-card">
+                    <div class="world-preview"
+                        style="background-image: url('world-preview.png'); filter: sepia(0.5) brightness(1.1);"></div>
+                    <div class="world-meta">
+                        <div class="world-info-row">
+                            <div class="world-name">Desert Oasis</div>
+                            <div class="world-rewards">210 CRAFT</div>
+                        </div>
+                        <div class="world-builder">by @sand_walker</div>
+                    </div>
+                    <div class="world-actions">
+                        <button class="world-btn primary">Play</button>
+                        <button class="world-btn">Details</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="board-footer-full">
+                <div class="board-info" style="font-size: 14px;">
+                    <strong>Listing Mechanic:</strong> New spots give 10% back! Take a slot to start earning from the
+                    next builder who joins the board.
+                </div>
+                <button class="mini-btn primary" style="width: auto; margin:0; padding: 15px 30px;"
+                    onclick="alert('Token integration coming soon!')">List Your World</button>
+            </div>
         </div>
     </div>
 
@@ -734,7 +995,8 @@
                 <div class="agent-steps">
                     <div class="agent-step"><strong>1.</strong> Copy the text above and paste it into your agent.</div>
                     <div class="agent-step"><strong>2.</strong> Ask it to generate a world or import a
-                        <code>#w=...</code> link.</div>
+                        <code>#w=...</code> link.
+                    </div>
                     <div class="agent-step"><strong>3.</strong> Use the share link to visit worlds across browsers.
                     </div>
                 </div>
@@ -1873,6 +2135,20 @@
 
         function onAgentBackdrop(e) {
             if (e && e.target && e.target.id === 'agentModal') closeAgentKit();
+        }
+
+        function openWorldBoard() {
+            const modal = document.getElementById('boardModal');
+            if (modal) modal.classList.add('visible');
+        }
+
+        function closeWorldBoard() {
+            const modal = document.getElementById('boardModal');
+            if (modal) modal.classList.remove('visible');
+        }
+
+        function onBoardBackdrop(e) {
+            if (e && e.target && e.target.id === 'boardModal') closeWorldBoard();
         }
 
         function setAgentMode(mode) {
