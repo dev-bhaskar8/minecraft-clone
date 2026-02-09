@@ -3,10 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minecraft Clone</title>
+    <title>Clawcraft</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { overflow: hidden; font-family: Arial, sans-serif; }
+        body { overflow: hidden; font-family: "Space Grotesk", system-ui, -apple-system, Segoe UI, Arial, sans-serif; }
         canvas { display: block; }
         #crosshair {
             position: fixed;
@@ -46,51 +49,344 @@
             position: fixed;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.85);
+            background: rgba(10, 14, 20, 0.86);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             color: white;
             padding: 40px;
             text-align: center;
             border-radius: 10px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+            border: 1px solid rgba(255,255,255,0.08);
+            min-width: 340px;
+            overflow: hidden;
+            z-index: 200; /* must cover hotbar/crosshair while in menus */
         }
+        #instructions::before {
+            content: "";
+            position: absolute;
+            inset: -2px;
+            background:
+                radial-gradient(700px 280px at 15% 5%, rgba(82,196,87,0.22), transparent 55%),
+                radial-gradient(520px 260px at 85% 30%, rgba(88,156,255,0.18), transparent 55%),
+                radial-gradient(560px 320px at 50% 110%, rgba(255,190,90,0.10), transparent 60%);
+            filter: blur(0px);
+            pointer-events: none;
+            z-index: 0;
+        }
+        #instructions > * { position: relative; z-index: 1; }
+
         #instructions h2 {
             margin-bottom: 20px;
             font-size: 28px;
-        }
-        #instructions p {
-            margin: 8px 0;
-            color: rgba(255,255,255,0.8);
-        }
-        #instructions button {
-            padding: 15px 30px;
-            font-size: 18px;
-            margin-top: 20px;
-            cursor: pointer;
-            border: none;
-            border-radius: 5px;
-            background: #4CAF50;
-            color: white;
-            transition: background 0.2s;
-        }
-        #instructions button:hover {
-            background: #45a049;
+            letter-spacing: 0.5px;
         }
 
-        .save-load-buttons {
+        #title {
+            font-family: "Press Start 2P", ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 20px;
+            line-height: 1.2;
+            margin-bottom: 10px;
+        }
+
+        #status {
+            margin: 0 0 16px 0;
+            color: rgba(255,255,255,0.76);
+            font-size: 14px;
+            line-height: 1.35;
+        }
+
+        .divider {
+            height: 1px;
+            background: rgba(255,255,255,0.10);
+            margin: 14px 0;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            text-align: left;
+            margin-top: 10px;
+        }
+
+        /* When Worlds panel is open, simplify the overlay by hiding the controls grid. */
+        #instructions.world-open .controls,
+        #instructions.world-open .divider {
+            display: none;
+        }
+
+        .controls h3 {
+            grid-column: 1 / -1;
+            font-size: 12px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.65);
+        }
+
+        .control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 10px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.10);
+        }
+
+        .control .label {
+            color: rgba(255,255,255,0.86);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .control .hint {
+            color: rgba(255,255,255,0.62);
+            font-size: 12px;
+            margin-top: 1px;
+        }
+
+        .control .text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .keys {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            min-width: 92px;
+            justify-content: flex-start;
+        }
+
+        .keycap {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 30px;
+            height: 30px;
+            padding: 0 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: rgba(255,255,255,0.92);
+            background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.06));
+            border: 1px solid rgba(255,255,255,0.18);
+            box-shadow: 0 8px 18px rgba(0,0,0,0.25);
+            letter-spacing: 0.3px;
+            user-select: none;
+        }
+
+        .keycap.wide { min-width: 64px; }
+        .keycap.tiny { min-width: 24px; padding: 0 8px; }
+
+        .btn-row {
             display: flex;
             gap: 10px;
             justify-content: center;
-            margin-top: 15px;
+            margin-top: 18px;
+            flex-wrap: wrap;
         }
 
-        .save-load-buttons button {
-            padding: 12px 20px;
+        #instructions button {
+            padding: 15px 30px;
+            font-size: 18px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            transition: transform 0.06s ease, background 0.15s ease, border-color 0.15s ease;
+        }
+
+        #instructions button:active {
+            transform: translateY(1px);
+        }
+
+        #startBtn {
+            background: linear-gradient(180deg, #4CAF50, #2E8B57);
+            box-shadow: 0 10px 24px rgba(46, 139, 87, 0.25);
+            min-width: 160px;
+        }
+
+        #startBtn:hover {
+            background: linear-gradient(180deg, #52c457, #2b7f51);
+        }
+
+        #worldBtn {
+            background: rgba(255,255,255,0.10);
+            border: 1px solid rgba(255,255,255,0.18);
+            padding: 15px 22px;
+        }
+
+        #worldBtn:hover {
+            background: rgba(255,255,255,0.14);
+            border-color: rgba(255,255,255,0.26);
+        }
+
+        .world-panel {
+            margin-top: 14px;
+            padding: 14px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.10);
+            text-align: left;
+        }
+
+        .world-panel.hidden {
+            display: none;
+        }
+
+        .world-panel h3 {
+            font-size: 13px;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.72);
+            margin-bottom: 10px;
+        }
+
+        .world-panel .mini-btn {
+            width: 100%;
+            padding: 12px 14px;
             font-size: 14px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.10);
+            border: 1px solid rgba(255,255,255,0.16);
+            margin: 6px 0 0 0;
+            text-align: center;
+        }
+
+        .world-panel .mini-btn:hover {
+            background: rgba(255,255,255,0.14);
+            border-color: rgba(255,255,255,0.24);
+        }
+
+        /* Agent Kit modal */
+        .modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.45);
+            z-index: 260;
+            padding: 18px;
+        }
+
+        .modal.visible { display: flex; }
+
+        .agent-card {
+            width: min(920px, 100%);
+            border-radius: 18px;
+            background: rgba(16, 18, 22, 0.92);
+            border: 1px solid rgba(255,255,255,0.10);
+            box-shadow: 0 24px 80px rgba(0,0,0,0.65);
+            overflow: hidden;
+        }
+
+        .agent-head {
+            padding: 22px 22px 14px 22px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .agent-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: rgba(255,255,255,0.92);
+        }
+
+        .agent-close {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.14);
+            color: rgba(255,255,255,0.85);
+            border-radius: 10px;
+            padding: 10px 12px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .agent-body {
+            padding: 0 22px 22px 22px;
+        }
+
+        .agent-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 12px;
+        }
+
+        .agent-mode {
+            display: flex;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.14);
+            background: rgba(255,255,255,0.06);
+        }
+
+        .agent-mode button {
+            flex: 1;
+            padding: 12px 10px;
+            font-size: 14px;
+            cursor: pointer;
+            border: 0;
+            background: transparent;
+            color: rgba(255,255,255,0.75);
+        }
+
+        .agent-mode button.active {
+            background: linear-gradient(180deg, rgba(82,196,87,0.85), rgba(46,139,87,0.75));
+            color: rgba(0,0,0,0.90);
+            font-weight: 700;
+        }
+
+        .agent-code {
+            margin-top: 12px;
+            padding: 16px 16px;
+            border-radius: 16px;
+            background: rgba(0,0,0,0.45);
+            border: 1px solid rgba(255,255,255,0.10);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+            color: #45f2c3;
+            font-size: 15px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            user-select: text;
+        }
+
+        .agent-steps {
+            margin-top: 14px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            color: rgba(255,255,255,0.78);
+        }
+
+        .agent-step strong {
+            color: rgba(82,196,87,0.95);
+        }
+
+        .agent-actions {
+            margin-top: 14px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .agent-actions .mini-btn {
+            width: auto;
             margin: 0;
         }
 
-        #loadFileInput {
-            display: none;
+        @media (max-width: 768px) {
+            .agent-actions {
+                justify-content: stretch;
+            }
+            .agent-actions .mini-btn {
+                width: 100%;
+            }
         }
 
         /* Mobile Controls */
@@ -191,15 +487,12 @@
         }
 
         @media (max-width: 768px) {
-            #instructions p {
-                display: none;
+            .controls {
+                grid-template-columns: 1fr;
             }
 
-            #instructions .mobile-instructions {
-                display: block;
-                margin: 10px 0;
-                font-size: 14px;
-            }
+            .desktop-only { display: none !important; }
+            .mobile-only { display: flex; }
 
             .pause-btn {
                 display: flex;
@@ -216,7 +509,21 @@
                 font-size: 18px;
             }
 
+            #instructions {
+                width: calc(100% - 24px);
+                min-width: unset;
+                padding: 26px 18px;
+                border-radius: 14px;
+            }
+
+            .btn-row {
+                gap: 8px;
+            }
+
         }
+
+        /* Desktop vs mobile hint blocks */
+        .mobile-only { display: none; }
     </style>
 </head>
 <body>
@@ -239,23 +546,184 @@
     </div>
 
     <div id="instructions">
-        <h2 id="title">Minecraft Clone</h2>
-        <p id="status">Click to start</p>
-        <p>WASD - Move | Mouse - Look</p>
-        <p>Space - Jump | Left Click - Destroy | Right Click - Place</p>
-        <p>1-7 - Select Block Type | Scroll - Cycle</p>
-        <p>ESC - Pause/Resume</p>
-        <p class="mobile-instructions">Drag to look | Use joystick to move</p>
-        <p class="mobile-instructions">Tap hotbar to select blocks</p>
-        <button id="startBtn" onclick="resumeGame()">Start Game</button>
-        <div class="save-load-buttons">
-            <button onclick="saveWorld()">Save World</button>
-            <button onclick="document.getElementById('loadFileInput').click()">Load World</button>
+        <h2 id="title">Clawcraft</h2>
+        <p id="status">Build, break, explore</p>
+        <div class="divider"></div>
+        <div class="controls">
+            <h3>Controls</h3>
+
+            <div class="control desktop-only">
+                <div class="keys">
+                    <span class="keycap tiny">W</span>
+                    <span class="keycap tiny">A</span>
+                    <span class="keycap tiny">S</span>
+                    <span class="keycap tiny">D</span>
+                </div>
+                <div class="text">
+                    <div class="label">Move</div>
+                    <div class="hint">Walk around</div>
+                </div>
+            </div>
+
+            <div class="control desktop-only">
+                <div class="keys">
+                    <span class="keycap wide">Mouse</span>
+                </div>
+                <div class="text">
+                    <div class="label">Look</div>
+                    <div class="hint">Aim where you build</div>
+                </div>
+            </div>
+
+            <div class="control desktop-only">
+                <div class="keys">
+                    <span class="keycap wide">Space</span>
+                </div>
+                <div class="text">
+                    <div class="label">Jump</div>
+                    <div class="hint">Hop over blocks</div>
+                </div>
+            </div>
+
+            <div class="control desktop-only">
+                <div class="keys">
+                    <span class="keycap wide">LMB</span>
+                    <span class="keycap wide">RMB</span>
+                </div>
+                <div class="text">
+                    <div class="label">Break / Place</div>
+                    <div class="hint">Shape the world</div>
+                </div>
+            </div>
+
+            <div class="control desktop-only">
+                <div class="keys">
+                    <span class="keycap">1-7</span>
+                    <span class="keycap wide">Wheel</span>
+                </div>
+                <div class="text">
+                    <div class="label">Select Block</div>
+                    <div class="hint">Hotbar + scroll</div>
+                </div>
+            </div>
+
+            <div class="control desktop-only">
+                <div class="keys">
+                    <span class="keycap wide">ESC</span>
+                </div>
+                <div class="text">
+                    <div class="label">Pause</div>
+                    <div class="hint">Unlock cursor</div>
+                </div>
+            </div>
+
+            <div class="control mobile-only">
+                <div class="keys">
+                    <span class="keycap wide">Drag</span>
+                </div>
+                <div class="text">
+                    <div class="label">Look</div>
+                    <div class="hint">Drag anywhere</div>
+                </div>
+            </div>
+
+            <div class="control mobile-only">
+                <div class="keys">
+                    <span class="keycap wide">Joystick</span>
+                </div>
+                <div class="text">
+                    <div class="label">Move</div>
+                    <div class="hint">Bottom-left control</div>
+                </div>
+            </div>
+
+            <div class="control mobile-only">
+                <div class="keys">
+                    <span class="keycap wide">Hotbar</span>
+                </div>
+                <div class="text">
+                    <div class="label">Select Block</div>
+                    <div class="hint">Tap a slot</div>
+                </div>
+            </div>
         </div>
-        <input type="file" id="loadFileInput" accept=".json" onchange="loadWorld(this.files[0])">
+        <div class="btn-row">
+            <button id="startBtn" onclick="resumeGame()">Start</button>
+            <button id="worldBtn" onclick="toggleWorldPanel()">Worlds</button>
+        </div>
+        <div id="worldPanel" class="world-panel hidden">
+            <h3>Worlds</h3>
+            <button class="mini-btn" onclick="copyShareLink()">Copy Share Link</button>
+            <button class="mini-btn" onclick="loadFromShareLinkPrompt()">Import Link/Code</button>
+            <button class="mini-btn" onclick="openAgentKit()">SKILL.MD for your Claw bots</button>
+            <button class="mini-btn" onclick="openMoltbookShare()">Share your world on Moltbook</button>
+        </div>
+    </div>
+
+    <div class="modal" id="agentModal" onclick="onAgentBackdrop(event)">
+        <div class="agent-card" onclick="event.stopPropagation()">
+            <div class="agent-head">
+                <div class="agent-title">SKILL.MD for your Claw bots</div>
+                <button class="agent-close" onclick="closeAgentKit()">Close</button>
+            </div>
+            <div class="agent-body">
+                <div class="agent-row">
+                    <div class="agent-mode" role="tablist" aria-label="Agent mode">
+                        <button id="modeManual" class="active" onclick="setAgentMode('manual')">manual</button>
+                        <button id="modePrompt" onclick="setAgentMode('prompt')">prompt</button>
+                    </div>
+                </div>
+
+                <div id="agentCode" class="agent-code"></div>
+
+                <div class="agent-steps">
+                    <div class="agent-step"><strong>1.</strong> Copy the text above and paste it into your agent.</div>
+                    <div class="agent-step"><strong>2.</strong> Ask it to generate a world or import a <code>#w=...</code> link.</div>
+                    <div class="agent-step"><strong>3.</strong> Use the share link to visit worlds across browsers.</div>
+                </div>
+
+                <div class="agent-actions">
+                    <button class="mini-btn" onclick="copyAgentText()">Copy</button>
+                    <button class="mini-btn" onclick="closeAgentKit()">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="moltModal" onclick="onMoltBackdrop(event)">
+        <div class="agent-card" onclick="event.stopPropagation()">
+            <div class="agent-head">
+                <div class="agent-title">Share your world on Moltbook</div>
+                <button class="agent-close" onclick="closeMoltbookShare()">Close</button>
+            </div>
+            <div class="agent-body">
+                <div class="agent-row">
+                    <div class="agent-mode" role="tablist" aria-label="Moltbook mode">
+                        <button id="moltModeManual" class="active" onclick="setMoltMode('manual')">manual</button>
+                        <button id="moltModePrompt" onclick="setMoltMode('prompt')">prompt</button>
+                    </div>
+                </div>
+
+                <div id="moltCode" class="agent-code"></div>
+
+                <div class="agent-steps">
+                    <div class="agent-step"><strong>1.</strong> Make sure Moltbook is installed in your OpenClaw.</div>
+                    <div class="agent-step"><strong>2.</strong> Paste the text above into your bot and tell it to post.</div>
+                    <div class="agent-step"><strong>3.</strong> Your post should include your share link (<code>#w=...</code>).</div>
+                </div>
+
+                <div class="agent-actions">
+                    <button class="mini-btn" onclick="openMoltbook()">Open Moltbook</button>
+                    <button class="mini-btn" onclick="copyMoltText()">Copy</button>
+                    <button class="mini-btn" onclick="closeMoltbookShare()">Done</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Fast compression for shareable world codes (client decompresses). -->
+    <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>
     <script>
         const CHUNK_SIZE = 48;
         const WORLD_HEIGHT = 32;
@@ -265,6 +733,8 @@
         let spatialMap = {};
         let clouds = [];
         let water;
+        let worldSeed = (Date.now() >>> 0);
+        const worldEdits = new Map(); // key "x,y,z" -> type (0=remove, 1..7=place)
         let time = 0;
         let lastTime = performance.now();
         let waterUpdateTimer = 0;
@@ -276,6 +746,12 @@
         let direction = new THREE.Vector3();
         let euler = new THREE.Euler(0, 0, 0, 'YXZ');
         const raycaster = new THREE.Raycaster();
+        // Scratch objects to avoid per-frame/per-input allocations.
+        const tmpForward = new THREE.Vector3();
+        const tmpRight = new THREE.Vector3();
+        const tmpMovement = new THREE.Vector3();
+        const tmpNewPos = new THREE.Vector3();
+        const tmpRayDir = new THREE.Vector3();
 
         // Mobile detection and touch state
         const isMobile = window.innerWidth <= 768 || 'ontouchstart' in window;
@@ -368,6 +844,325 @@
             7: createTexture(7)
         };
 
+        // Reuse one material per block type (per-block materials are a perf/memory killer).
+        const blockMaterials = {
+            1: new THREE.MeshLambertMaterial({ map: blockTextures[1].texture }),
+            2: new THREE.MeshLambertMaterial({ map: blockTextures[2].texture }),
+            3: new THREE.MeshLambertMaterial({ map: blockTextures[3].texture }),
+            4: new THREE.MeshLambertMaterial({ map: blockTextures[4].texture }),
+            5: new THREE.MeshLambertMaterial({ map: blockTextures[5].texture }),
+            6: new THREE.MeshLambertMaterial({ map: blockTextures[6].texture }),
+            7: new THREE.MeshLambertMaterial({
+                map: blockTextures[7].texture,
+                transparent: true,
+                opacity: 0.5,
+                side: THREE.DoubleSide
+            })
+        };
+
+        const waterBlocks = new Set(); // keys for blocks with type 7
+
+        function makeRng(seed) {
+            // mulberry32
+            let t = seed >>> 0;
+            return function() {
+                t += 0x6D2B79F5;
+                let r = Math.imul(t ^ (t >>> 15), 1 | t);
+                r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+                return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+            };
+        }
+
+        function setWorldSeed(seed) {
+            worldSeed = (seed >>> 0);
+            worldEdits.clear();
+        }
+
+        function recordEdit(x, y, z, type) {
+            // type: 0=remove, 1..7=place
+            worldEdits.set(`${x},${y},${z}`, type | 0);
+        }
+
+        function applyEdits(editsMap) {
+            // Apply last-write-wins edits on top of the generated base world.
+            for (const [key, type] of editsMap.entries()) {
+                const [x, y, z] = key.split(',').map(Number);
+                if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
+                if (type === 0) {
+                    removeBlock(x, y, z);
+                } else {
+                    // Replace existing block if present with different type.
+                    const existing = blocks[key];
+                    if (existing && existing.userData && existing.userData.type === type) continue;
+                    if (existing) removeBlock(x, y, z);
+                    createBlock(x, y, z, type);
+                }
+            }
+        }
+
+        function resetBlocksOnly() {
+            Object.values(blocks).forEach(block => scene.remove(block));
+            blocks = {};
+            spatialMap = {};
+            waterBlocks.clear();
+        }
+
+        // Compact, compressed share format: magic + seed + count(varint) + N*(3 bytes packed edit)
+        // Packed edit (24 bits, little-endian): x(6) | z(6) | y(6) | type(3) | unused(3)
+        function encodeVarint(n) {
+            const out = [];
+            let v = n >>> 0;
+            while (v >= 0x80) {
+                out.push((v & 0x7f) | 0x80);
+                v >>>= 7;
+            }
+            out.push(v);
+            return out;
+        }
+
+        function decodeVarint(u8, offset) {
+            let v = 0;
+            let shift = 0;
+            let i = offset;
+            while (i < u8.length) {
+                const b = u8[i++];
+                v |= (b & 0x7f) << shift;
+                if ((b & 0x80) === 0) return { value: v >>> 0, next: i };
+                shift += 7;
+                if (shift > 28) break;
+            }
+            throw new Error('Invalid varint');
+        }
+
+        function base64UrlEncode(bytes) {
+            let bin = '';
+            const chunk = 0x8000;
+            for (let i = 0; i < bytes.length; i += chunk) {
+                bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+            }
+            return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+        }
+
+        function base64UrlDecode(str) {
+            const pad = str.length % 4 ? '='.repeat(4 - (str.length % 4)) : '';
+            const b64 = (str + pad).replace(/-/g, '+').replace(/_/g, '/');
+            const bin = atob(b64);
+            const out = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+            return out;
+        }
+
+        function exportWorldCode() {
+            const edits = [];
+            for (const [key, type] of worldEdits.entries()) {
+                const [x, y, z] = key.split(',').map(Number);
+                if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
+                if (x < 0 || x >= CHUNK_SIZE || z < 0 || z >= CHUNK_SIZE || y < 0 || y >= WORLD_HEIGHT) continue;
+                const t = (type | 0) & 0x7; // 0..7
+                const packed = (x & 63) | ((z & 63) << 6) | ((y & 63) << 12) | (t << 18);
+                edits.push(packed);
+            }
+
+            const header = [0x43, 0x43, 0x57, 0x31]; // "CCW1"
+            const seedBytes = [worldSeed & 255, (worldSeed >>> 8) & 255, (worldSeed >>> 16) & 255, (worldSeed >>> 24) & 255];
+            const countBytes = encodeVarint(edits.length);
+
+            const raw = new Uint8Array(header.length + seedBytes.length + countBytes.length + edits.length * 3);
+            let o = 0;
+            raw.set(header, o); o += header.length;
+            raw.set(seedBytes, o); o += seedBytes.length;
+            raw.set(countBytes, o); o += countBytes.length;
+            for (let i = 0; i < edits.length; i++) {
+                const p = edits[i] >>> 0;
+                raw[o++] = p & 255;
+                raw[o++] = (p >>> 8) & 255;
+                raw[o++] = (p >>> 16) & 255;
+            }
+
+            // client will decompress; store compressed to keep it small (NFT/on-chain friendly)
+            const compressed = fflate.deflateSync(raw, { level: 9 });
+            return base64UrlEncode(compressed);
+        }
+
+        function importWorldCode(code) {
+            const compressed = base64UrlDecode(code.trim());
+            const raw = fflate.inflateSync(compressed);
+            if (raw.length < 9) throw new Error('World code too short');
+            if (raw[0] !== 0x43 || raw[1] !== 0x43 || raw[2] !== 0x57 || raw[3] !== 0x31) {
+                throw new Error('Invalid world code header');
+            }
+            const seed = (raw[4] | (raw[5] << 8) | (raw[6] << 16) | (raw[7] << 24)) >>> 0;
+            const { value: count, next } = decodeVarint(raw, 8);
+            let o = next;
+            const editsMap = new Map();
+            for (let i = 0; i < count; i++) {
+                if (o + 3 > raw.length) throw new Error('Truncated world code');
+                const p = (raw[o] | (raw[o + 1] << 8) | (raw[o + 2] << 16)) >>> 0;
+                o += 3;
+                const x = p & 63;
+                const z = (p >>> 6) & 63;
+                const y = (p >>> 12) & 63;
+                const t = (p >>> 18) & 7; // 0..7
+                if (x >= CHUNK_SIZE || z >= CHUNK_SIZE || y >= WORLD_HEIGHT) continue;
+                editsMap.set(`${x},${y},${z}`, t);
+            }
+            return { seed, editsMap };
+        }
+
+        async function copyShareLink() {
+            const code = exportWorldCode();
+            const url = new URL(window.location.href);
+            url.hash = `w=${code}`;
+            try {
+                await navigator.clipboard.writeText(url.toString());
+                alert('World link copied to clipboard');
+            } catch {
+                prompt('Copy this world link:', url.toString());
+            }
+        }
+
+        function loadFromShareLinkPrompt() {
+            const urlOrCode = prompt('Paste a world link or code:');
+            if (!urlOrCode) return;
+            let code = urlOrCode.trim();
+            try {
+                if (code.includes('#')) {
+                    const hash = code.split('#')[1] || '';
+                    const m = hash.match(/(?:^|&)w=([^&]+)/);
+                    if (m) code = decodeURIComponent(m[1]);
+                }
+                const { seed, editsMap } = importWorldCode(code);
+                loadSeedAndEdits(seed, editsMap);
+            } catch (e) {
+                alert('Failed to load world: ' + (e && e.message ? e.message : String(e)));
+            }
+        }
+
+        function loadSeedAndEdits(seed, editsMap) {
+            setWorldSeed(seed);
+            resetBlocksOnly();
+            generateWorld();
+            // keep local edit map for future exports
+            for (const [k, v] of editsMap.entries()) worldEdits.set(k, v);
+            applyEdits(worldEdits);
+            safeSpawnAt(Math.floor(CHUNK_SIZE / 2), Math.floor(CHUNK_SIZE / 2));
+        }
+
+        function maybeLoadFromHash() {
+            const h = (window.location.hash || '').replace(/^#/, '');
+            const m = h.match(/(?:^|&)w=([^&]+)/);
+            if (!m) return false;
+            try {
+                const code = decodeURIComponent(m[1]);
+                const { seed, editsMap } = importWorldCode(code);
+                loadSeedAndEdits(seed, editsMap);
+                return true;
+            } catch (e) {
+                // keep going with a new world
+                console.warn('Failed to load world from hash:', e);
+                return false;
+            }
+        }
+
+        function intersectsAABB(ax0, ay0, az0, ax1, ay1, az1, bx0, by0, bz0, bx1, by1, bz1) {
+            return ax0 < bx1 && ax1 > bx0 && ay0 < by1 && ay1 > by0 && az0 < bz1 && az1 > bz0;
+        }
+
+        function playerIntersectsBlock(px, py, pz, bx, by, bz) {
+            return intersectsAABB(
+                px - 0.3, py - 1.5, pz - 0.3,
+                px + 0.3, py + 0.3, pz + 0.3,
+                bx, by, bz,
+                bx + 1, by + 1, bz + 1
+            );
+        }
+
+        // Fast voxel raycast (DDA) to avoid O(n) raycaster scans across all block meshes.
+        // Returns null or { x,y,z, nx,ny,nz, distance } where (nx,ny,nz) is the face normal
+        // pointing toward the ray origin (matches three.js intersect face normal behavior for placement).
+        function raycastVoxel(origin, direction, maxDistance) {
+            const ox = origin.x, oy = origin.y, oz = origin.z;
+            const dx = direction.x, dy = direction.y, dz = direction.z;
+
+            const lenSq = dx * dx + dy * dy + dz * dz;
+            if (lenSq < 1e-12) return null;
+
+            let x = Math.floor(ox);
+            let y = Math.floor(oy);
+            let z = Math.floor(oz);
+
+            const stepX = dx > 0 ? 1 : (dx < 0 ? -1 : 0);
+            const stepY = dy > 0 ? 1 : (dy < 0 ? -1 : 0);
+            const stepZ = dz > 0 ? 1 : (dz < 0 ? -1 : 0);
+
+            const invDx = dx !== 0 ? 1 / dx : 0;
+            const invDy = dy !== 0 ? 1 / dy : 0;
+            const invDz = dz !== 0 ? 1 / dz : 0;
+
+            const nextBoundaryX = stepX > 0 ? (x + 1) : x;
+            const nextBoundaryY = stepY > 0 ? (y + 1) : y;
+            const nextBoundaryZ = stepZ > 0 ? (z + 1) : z;
+
+            let tMaxX = stepX !== 0 ? (nextBoundaryX - ox) * invDx : Infinity;
+            let tMaxY = stepY !== 0 ? (nextBoundaryY - oy) * invDy : Infinity;
+            let tMaxZ = stepZ !== 0 ? (nextBoundaryZ - oz) * invDz : Infinity;
+
+            const tDeltaX = stepX !== 0 ? stepX * invDx : Infinity;
+            const tDeltaY = stepY !== 0 ? stepY * invDy : Infinity;
+            const tDeltaZ = stepZ !== 0 ? stepZ * invDz : Infinity;
+
+            const startKey = `${x},${y},${z}`;
+            if (blocks[startKey]) {
+                return { x, y, z, nx: 0, ny: 0, nz: 0, distance: 0 };
+            }
+
+            let t = 0;
+            let nx = 0, ny = 0, nz = 0;
+
+            while (t <= maxDistance) {
+                if (tMaxX < tMaxY && tMaxX < tMaxZ) {
+                    x += stepX;
+                    t = tMaxX;
+                    tMaxX += Math.abs(tDeltaX);
+                    nx = -stepX; ny = 0; nz = 0;
+                } else if (tMaxY < tMaxZ) {
+                    y += stepY;
+                    t = tMaxY;
+                    tMaxY += Math.abs(tDeltaY);
+                    nx = 0; ny = -stepY; nz = 0;
+                } else {
+                    z += stepZ;
+                    t = tMaxZ;
+                    tMaxZ += Math.abs(tDeltaZ);
+                    nx = 0; ny = 0; nz = -stepZ;
+                }
+
+                if (t > maxDistance) break;
+                const key = `${x},${y},${z}`;
+                if (blocks[key]) return { x, y, z, nx, ny, nz, distance: t };
+            }
+
+            return null;
+        }
+
+        function disposeObject3D(root) {
+            if (!root || !root.traverse) return;
+            const geometries = new Set();
+            const materials = new Set();
+
+            root.traverse(obj => {
+                if (!obj || !obj.isMesh) return;
+                if (obj.geometry) geometries.add(obj.geometry);
+                if (obj.material) {
+                    if (Array.isArray(obj.material)) obj.material.forEach(m => materials.add(m));
+                    else materials.add(obj.material);
+                }
+            });
+
+            geometries.forEach(g => g && g.dispose && g.dispose());
+            materials.forEach(m => m && m.dispose && m.dispose());
+        }
+
         function init() {
             scene = new THREE.Scene();
 
@@ -459,6 +1254,7 @@
             camera.position.set(CHUNK_SIZE/2, 15, CHUNK_SIZE/2);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
             document.body.appendChild(renderer.domElement);
@@ -471,7 +1267,12 @@
             directionalLight.castShadow = true;
             scene.add(directionalLight);
 
-            generateWorld();
+            // If a share code is present in the URL, load it; otherwise generate a fresh world.
+            if (!maybeLoadFromHash()) {
+                setWorldSeed(worldSeed);
+                generateWorld();
+                safeSpawnAt(Math.floor(CHUNK_SIZE / 2), Math.floor(CHUNK_SIZE / 2));
+            }
 
             const waterGeometry = new THREE.PlaneGeometry(500, 500);
             const waterMaterial = new THREE.MeshBasicMaterial({
@@ -495,8 +1296,10 @@
         }
 
         function noise(x, z) {
-            const nx = x / CHUNK_SIZE;
-            const nz = z / CHUNK_SIZE;
+            // Seeded offset so the same seed regenerates the same terrain.
+            const s = worldSeed * 0.0001;
+            const nx = (x / CHUNK_SIZE) + s;
+            const nz = (z / CHUNK_SIZE) - s;
             return Math.sin(nx * 8) * Math.cos(nz * 8) +
                    Math.sin(nx * 15 + nz * 10) * 0.5 +
                    Math.cos(nz * 12) * 0.3;
@@ -504,6 +1307,7 @@
 
         function generateWorld() {
             const heights = [];
+            const rng = makeRng(worldSeed);
 
             for (let x = 0; x < CHUNK_SIZE; x++) {
                 heights[x] = [];
@@ -525,7 +1329,7 @@
                         createBlock(x, y, z, type);
                     }
 
-                    if (Math.random() < 0.02 && height > 6) {
+                    if (rng() < 0.02 && height > 6) {
                         const spawnX = Math.floor(CHUNK_SIZE / 2);
                         const spawnZ = Math.floor(CHUNK_SIZE / 2);
                         const distanceToSpawn = Math.sqrt(Math.pow(x - spawnX, 2) + Math.pow(z - spawnZ, 2));
@@ -534,7 +1338,7 @@
                             continue;
                         }
 
-                        const treeHeight = 4 + Math.floor(Math.random() * 3);
+                        const treeHeight = 4 + Math.floor(rng() * 3);
                         for (let ty = height; ty < height + treeHeight; ty++) {
                             createBlock(x, ty, z, 4);
                         }
@@ -555,27 +1359,70 @@
             }
         }
 
+        function findTopTerrainY(x, z) {
+            // Prefer terrain blocks (not wood/leaves/water) so we don't spawn on top of trees.
+            for (let y = WORLD_HEIGHT - 1; y >= 0; y--) {
+                const b = blocks[`${x},${y},${z}`];
+                if (!b) continue;
+                const t = b.userData.type;
+                if (t === 7) continue; // water
+                if (t === 4 || t === 5) continue; // wood/leaves
+                return y;
+            }
+            // Fallback: any solid (non-water) block.
+            for (let y = WORLD_HEIGHT - 1; y >= 0; y--) {
+                const b = blocks[`${x},${y},${z}`];
+                if (!b) continue;
+                const t = b.userData.type;
+                if (t === 7) continue;
+                return y;
+            }
+            return -1;
+        }
+
+        function safeSpawnAt(x, z) {
+            // x/z are block coords (integers). Place player above top terrain and ensure not colliding.
+            const sx = Math.max(0, Math.min(CHUNK_SIZE - 1, x | 0));
+            const sz = Math.max(0, Math.min(CHUNK_SIZE - 1, z | 0));
+            const topY = findTopTerrainY(sx, sz);
+            const startY = (topY >= 0 ? topY + 3 : 10);
+
+            camera.position.set(sx + 0.5, startY, sz + 0.5);
+            velocity.set(0, 0, 0);
+            canJump = false;
+
+            // If we're still inside something (e.g. weird edits), climb up until free.
+            for (let i = 0; i < 24 && checkCollision(camera.position); i++) {
+                camera.position.y += 1;
+            }
+        }
+
+        function ensureNotStuck() {
+            if (!checkCollision(camera.position)) return;
+            // Nudge upward first; if still colliding, respawn at center.
+            for (let i = 0; i < 24 && checkCollision(camera.position); i++) {
+                camera.position.y += 1;
+            }
+            if (checkCollision(camera.position)) {
+                safeSpawnAt(Math.floor(CHUNK_SIZE / 2), Math.floor(CHUNK_SIZE / 2));
+            }
+        }
+
         function createBlock(x, y, z, type) {
             const key = `${x},${y},${z}`;
             if (blocks[key]) return;
 
-            let material;
             let castShadow = true;
             let receiveShadow = true;
 
             if (type === 7) {
-                material = new THREE.MeshLambertMaterial({
-                    map: blockTextures[type].texture,
-                    transparent: true,
-                    opacity: 0.5,
-                    side: THREE.DoubleSide
-                });
                 castShadow = false;
                 receiveShadow = false;
+                waterBlocks.add(key);
             } else {
-                material = new THREE.MeshLambertMaterial({ map: blockTextures[type].texture });
+                waterBlocks.delete(key);
             }
-            const cube = new THREE.Mesh(boxGeometry, material);
+            const cube = new THREE.Mesh(boxGeometry, blockMaterials[type] || blockMaterials[1]);
             cube.position.set(x + 0.5, y + 0.5, z + 0.5);
             cube.castShadow = castShadow;
             cube.receiveShadow = receiveShadow;
@@ -584,24 +1431,36 @@
             blocks[key] = cube;
 
             const spatialKey = `${Math.floor(x)},${Math.floor(z)}`;
-            if (!spatialMap[spatialKey]) spatialMap[spatialKey] = [];
-            spatialMap[spatialKey].push(key);
+            if (!spatialMap[spatialKey]) spatialMap[spatialKey] = new Set();
+            spatialMap[spatialKey].add(key);
         }
 
         function removeBlock(x, y, z) {
             const key = `${x},${y},${z}`;
             if (blocks[key]) {
-                blocks[key].material.dispose();
+                if (blocks[key].userData && blocks[key].userData.type === 7) {
+                    waterBlocks.delete(key);
+                }
                 scene.remove(blocks[key]);
 
                 const spatialKey = `${Math.floor(x)},${Math.floor(z)}`;
                 if (spatialMap[spatialKey]) {
-                    const index = spatialMap[spatialKey].indexOf(key);
-                    if (index > -1) spatialMap[spatialKey].splice(index, 1);
+                    spatialMap[spatialKey].delete(key);
+                    if (spatialMap[spatialKey].size === 0) delete spatialMap[spatialKey];
                 }
 
                 delete blocks[key];
             }
+        }
+
+        function playerRemoveBlock(x, y, z) {
+            removeBlock(x, y, z);
+            recordEdit(x, y, z, 0);
+        }
+
+        function playerPlaceBlock(x, y, z, type) {
+            createBlock(x, y, z, type);
+            recordEdit(x, y, z, type);
         }
 
         function setupHotbar() {
@@ -656,6 +1515,7 @@
 
             document.addEventListener('mousemove', (e) => {
                 if (!isPlaying) return;
+                if (!isMobile && document.pointerLockElement !== renderer.domElement) return;
                 euler.setFromQuaternion(camera.quaternion);
                 euler.y -= e.movementX * 0.002;
                 euler.x -= e.movementY * 0.002;
@@ -665,25 +1525,22 @@
 
             document.addEventListener('mousedown', (e) => {
                 if (!isPlaying) return;
-                raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-                const intersects = raycaster.intersectObjects(Object.values(blocks));
+                tmpRayDir.set(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
+                const hit = raycastVoxel(camera.position, tmpRayDir, 8);
 
-                if (intersects.length > 0 && intersects[0].distance < 8) {
-                    const hit = intersects[0];
-                    const { x, y, z } = hit.object.userData;
+                if (hit) {
+                    const { x, y, z } = hit;
 
                     if (e.button === 0) {
-                        removeBlock(x, y, z);
+                        playerRemoveBlock(x, y, z);
                     } else if (e.button === 2) {
-                        const normal = hit.face.normal;
-                        const baseX = x + Math.round(normal.x);
-                        const baseY = y + Math.round(normal.y);
-                        const baseZ = z + Math.round(normal.z);
+                        const baseX = x + hit.nx;
+                        const baseY = y + hit.ny;
+                        const baseZ = z + hit.nz;
 
-                        const playerBox = new THREE.Box3(
-                            new THREE.Vector3(camera.position.x - 0.3, camera.position.y - 1.5, camera.position.z - 0.3),
-                            new THREE.Vector3(camera.position.x + 0.3, camera.position.y + 0.3, camera.position.z + 0.3)
-                        );
+                        const px = camera.position.x;
+                        const py = camera.position.y;
+                        const pz = camera.position.z;
 
                         if (selectedBlockType === 7) {
                             let count = 0;
@@ -692,23 +1549,15 @@
                                     const newX = baseX + dx;
                                     const newY = baseY;
                                     const newZ = baseZ + dz;
-                                    const blockBox = new THREE.Box3(
-                                        new THREE.Vector3(newX, newY, newZ),
-                                        new THREE.Vector3(newX + 1, newY + 1, newZ + 1)
-                                    );
-                                    if (!playerBox.intersectsBox(blockBox) && !blocks[`${newX},${newY},${newZ}`]) {
-                                        createBlock(newX, newY, newZ, selectedBlockType);
+                                    if (!playerIntersectsBlock(px, py, pz, newX, newY, newZ) && !blocks[`${newX},${newY},${newZ}`]) {
+                                        playerPlaceBlock(newX, newY, newZ, selectedBlockType);
                                         count++;
                                     }
                                 }
                             }
                         } else {
-                            const blockBox = new THREE.Box3(
-                                new THREE.Vector3(baseX, baseY, baseZ),
-                                new THREE.Vector3(baseX + 1, baseY + 1, baseZ + 1)
-                            );
-                            if (!playerBox.intersectsBox(blockBox)) {
-                                createBlock(baseX, baseY, baseZ, selectedBlockType);
+                            if (!playerIntersectsBlock(px, py, pz, baseX, baseY, baseZ)) {
+                                playerPlaceBlock(baseX, baseY, baseZ, selectedBlockType);
                             }
                         }
                     }
@@ -892,25 +1741,22 @@
             }
             lastActionTime = now;
 
-            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            const intersects = raycaster.intersectObjects(Object.values(blocks));
+            tmpRayDir.set(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
+            const hit = raycastVoxel(camera.position, tmpRayDir, 8);
 
-            if (intersects.length > 0 && intersects[0].distance < 8) {
-                const hit = intersects[0];
-                const { x, y, z } = hit.object.userData;
+            if (hit) {
+                const { x, y, z } = hit;
 
                 if (button === 0) {
-                    removeBlock(x, y, z);
+                    playerRemoveBlock(x, y, z);
                 } else if (button === 2) {
-                    const normal = hit.face.normal;
-                    const baseX = x + Math.round(normal.x);
-                    const baseY = y + Math.round(normal.y);
-                    const baseZ = z + Math.round(normal.z);
+                    const baseX = x + hit.nx;
+                    const baseY = y + hit.ny;
+                    const baseZ = z + hit.nz;
 
-                    const playerBox = new THREE.Box3(
-                        new THREE.Vector3(camera.position.x - 0.3, camera.position.y - 1.5, camera.position.z - 0.3),
-                        new THREE.Vector3(camera.position.x + 0.3, camera.position.y + 0.3, camera.position.z + 0.3)
-                    );
+                    const px = camera.position.x;
+                    const py = camera.position.y;
+                    const pz = camera.position.z;
 
                     if (selectedBlockType === 7) {
                         let count = 0;
@@ -919,23 +1765,15 @@
                                 const newX = baseX + dx;
                                 const newY = baseY;
                                 const newZ = baseZ + dz;
-                                const blockBox = new THREE.Box3(
-                                    new THREE.Vector3(newX, newY, newZ),
-                                    new THREE.Vector3(newX + 1, newY + 1, newZ + 1)
-                                );
-                                if (!playerBox.intersectsBox(blockBox) && !blocks[`${newX},${newY},${newZ}`]) {
-                                    createBlock(newX, newY, newZ, selectedBlockType);
+                                if (!playerIntersectsBlock(px, py, pz, newX, newY, newZ) && !blocks[`${newX},${newY},${newZ}`]) {
+                                    playerPlaceBlock(newX, newY, newZ, selectedBlockType);
                                     count++;
                                 }
                             }
                         }
                     } else {
-                        const blockBox = new THREE.Box3(
-                            new THREE.Vector3(baseX, baseY, baseZ),
-                            new THREE.Vector3(baseX + 1, baseY + 1, baseZ + 1)
-                        );
-                        if (!playerBox.intersectsBox(blockBox)) {
-                            createBlock(baseX, baseY, baseZ, selectedBlockType);
+                        if (!playerIntersectsBlock(px, py, pz, baseX, baseY, baseZ)) {
+                            playerPlaceBlock(baseX, baseY, baseZ, selectedBlockType);
                         }
                     }
                 }
@@ -945,9 +1783,159 @@
 
         let gameStarted = false;
 
+        function toggleWorldPanel(forceOpen) {
+            const panel = document.getElementById('worldPanel');
+            if (!panel) return;
+            const overlay = document.getElementById('instructions');
+            if (typeof forceOpen === 'boolean') {
+                panel.classList.toggle('hidden', !forceOpen);
+                if (overlay) overlay.classList.toggle('world-open', !!forceOpen);
+                return;
+            }
+            const willOpen = panel.classList.contains('hidden');
+            panel.classList.toggle('hidden');
+            if (overlay) overlay.classList.toggle('world-open', willOpen);
+        }
+
+        let agentMode = 'manual';
+
+        function openAgentKit() {
+            const modal = document.getElementById('agentModal');
+            if (!modal) return;
+            modal.classList.add('visible');
+            updateAgentKitText();
+        }
+
+        function closeAgentKit() {
+            const modal = document.getElementById('agentModal');
+            if (!modal) return;
+            modal.classList.remove('visible');
+        }
+
+        function onAgentBackdrop(e) {
+            if (e && e.target && e.target.id === 'agentModal') closeAgentKit();
+        }
+
+        function setAgentMode(mode) {
+            agentMode = mode === 'prompt' ? 'prompt' : 'manual';
+            const m = document.getElementById('modeManual');
+            const p = document.getElementById('modePrompt');
+            if (m) m.classList.toggle('active', agentMode === 'manual');
+            if (p) p.classList.toggle('active', agentMode === 'prompt');
+            updateAgentKitText();
+        }
+
+        function getSkillUrl() {
+            // On Cloudflare Pages this will be served at /SKILL.md.
+            // When opened as file://, origin is "null" and curl won't work, so show a placeholder domain.
+            const placeholder = 'https://your-site.pages.dev/SKILL.md';
+            try {
+                if (window.location.protocol === 'file:' || window.location.origin === 'null') return placeholder;
+                return `${window.location.origin}/SKILL.md`;
+            } catch {
+                return placeholder;
+            }
+        }
+
+        function updateAgentKitText() {
+            const codeEl = document.getElementById('agentCode');
+            if (!codeEl) return;
+            const skillUrl = getSkillUrl();
+
+            if (agentMode === 'manual') {
+                codeEl.textContent =
+`curl -s ${skillUrl}\n\nRead the SKILL.MD above and follow the instructions.\nWorld codes live in the URL hash as #w=... and represent (seed + edits) compressed.`;
+            } else {
+                codeEl.textContent =
+`Work inside this repo.\n\nStart by reading:\n${skillUrl}\n\nTasks:\n- Generate a world seed and build structures programmatically.\n- Export a share link (#w=...) for others to visit.\n- Import a #w=... code and load it in index.html.\n\nRules:\n- Worlds are seed + edits (do not serialize every terrain block).\n- Keep UI minimal: Start + Worlds, advanced actions inside Worlds.`;
+            }
+        }
+
+        async function copyAgentText() {
+            const text = document.getElementById('agentCode')?.textContent || '';
+            if (!text) return;
+            try {
+                await navigator.clipboard.writeText(text);
+                alert('Copied');
+            } catch {
+                prompt('Copy this:', text);
+            }
+        }
+
+        // (No inputs to watch right now; mode toggle updates text.)
+
+        let moltMode = 'manual';
+
+        function getCurrentShareUrl() {
+            try {
+                const code = exportWorldCode();
+                const url = new URL(window.location.href);
+                url.hash = `w=${code}`;
+                return url.toString();
+            } catch {
+                return '(generate a world first, then copy share link)';
+            }
+        }
+
+        function openMoltbookShare() {
+            const modal = document.getElementById('moltModal');
+            if (!modal) return;
+            modal.classList.add('visible');
+            updateMoltText();
+        }
+
+        function closeMoltbookShare() {
+            const modal = document.getElementById('moltModal');
+            if (!modal) return;
+            modal.classList.remove('visible');
+        }
+
+        function onMoltBackdrop(e) {
+            if (e && e.target && e.target.id === 'moltModal') closeMoltbookShare();
+        }
+
+        function setMoltMode(mode) {
+            moltMode = mode === 'prompt' ? 'prompt' : 'manual';
+            const m = document.getElementById('moltModeManual');
+            const p = document.getElementById('moltModePrompt');
+            if (m) m.classList.toggle('active', moltMode === 'manual');
+            if (p) p.classList.toggle('active', moltMode === 'prompt');
+            updateMoltText();
+        }
+
+        function updateMoltText() {
+            const el = document.getElementById('moltCode');
+            if (!el) return;
+            const shareUrl = getCurrentShareUrl();
+
+            if (moltMode === 'manual') {
+                el.textContent =
+`Use the Moltbook skill (installed in your OpenClaw) to create a new thread on https://www.moltbook.com/.\n\nTitle: Clawcraft worlds\nBody:\n- What I built in Clawcraft\n- What makes Clawcraft fun (browser voxel building, shareable worlds)\n- Play my world: ${shareUrl}\n- Ask others to reply with their own Clawcraft world links (#w=...)\n\nRequirement: Moltbook must be installed in your OpenClaw.`;
+            } else {
+                el.textContent =
+`You are my Claw bot running in OpenClaw with Moltbook installed.\n\nTask:\n1) Create a new thread on https://www.moltbook.com/.\n2) Write a short, hype-but-not-spammy post about Clawcraft.\n3) Include this playable world link:\n${shareUrl}\n4) Ask others to reply with their own Clawcraft world links (#w=...).\n\nConstraints:\n- Be concise.\n- Do not invent features that aren't in Clawcraft.\n- Keep tone friendly, not salesy.`;
+            }
+        }
+
+        function openMoltbook() {
+            window.open('https://www.moltbook.com/', '_blank', 'noopener,noreferrer');
+        }
+
+        async function copyMoltText() {
+            const text = document.getElementById('moltCode')?.textContent || '';
+            if (!text) return;
+            try {
+                await navigator.clipboard.writeText(text);
+                alert('Copied');
+            } catch {
+                prompt('Copy this:', text);
+            }
+        }
+
         function resumeGame() {
             document.getElementById('instructions').style.display = 'none';
             document.getElementById('crosshair').classList.remove('hidden');
+            toggleWorldPanel(false);
 
             // Show mobile controls
             if (isMobile) {
@@ -968,10 +1956,11 @@
             const pauseBtn = document.getElementById('pauseBtn');
 
             title.textContent = 'Paused';
-            status.textContent = 'Click to resume';
-            btn.textContent = 'Resume Game';
+            status.textContent = 'Take a breather, then jump back in';
+            btn.textContent = 'Resume';
             document.getElementById('crosshair').classList.add('hidden');
             pauseBtn.style.display = 'none';
+            toggleWorldPanel(false);
 
             // Hide all mobile controls when paused
             if (isMobile) {
@@ -991,9 +1980,9 @@
                 if (gameStarted) {
                     showPauseScreen();
                 } else {
-                    document.getElementById('title').textContent = 'Minecraft Clone';
-                    document.getElementById('status').textContent = 'Click to start';
-                    document.getElementById('startBtn').textContent = 'Start Game';
+                    document.getElementById('title').textContent = 'Clawcraft';
+                    document.getElementById('status').textContent = 'Build, break, explore';
+                    document.getElementById('startBtn').textContent = 'Start';
                     document.getElementById('instructions').style.display = 'block';
                 }
             } else {
@@ -1005,14 +1994,17 @@
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
         function checkCollision(position) {
-            const playerBox = new THREE.Box3(
-                new THREE.Vector3(position.x - 0.3, position.y - 1.5, position.z - 0.3),
-                new THREE.Vector3(position.x + 0.3, position.y + 0.3, position.z + 0.3)
-            );
+            const ax0 = position.x - 0.3;
+            const ay0 = position.y - 1.5;
+            const az0 = position.z - 0.3;
+            const ax1 = position.x + 0.3;
+            const ay1 = position.y + 0.3;
+            const az1 = position.z + 0.3;
 
             const startX = Math.floor(position.x) - 2;
             const endX = Math.floor(position.x) + 2;
@@ -1028,11 +2020,10 @@
                         if (!blocks[key]) continue;
                         const block = blocks[key];
                         if (block.userData.type === 7) continue;
-                        const blockBox = new THREE.Box3(
-                            new THREE.Vector3(block.position.x - 0.5, block.position.y - 0.5, block.position.z - 0.5),
-                            new THREE.Vector3(block.position.x + 0.5, block.position.y + 0.5, block.position.z + 0.5)
-                        );
-                        if (playerBox.intersectsBox(blockBox)) return true;
+                        const bx0 = block.userData.x;
+                        const by0 = block.userData.y;
+                        const bz0 = block.userData.z;
+                        if (intersectsAABB(ax0, ay0, az0, ax1, ay1, az1, bx0, by0, bz0, bx0 + 1, by0 + 1, bz0 + 1)) return true;
                     }
                 }
             }
@@ -1057,30 +2048,29 @@
                 if (moveForward || moveBackward) velocity.z -= direction.z * 100.0 * delta;
                 if (moveLeft || moveRight) velocity.x += direction.x * 100.0 * delta;
 
-                const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-                forward.y = 0;
-                forward.normalize();
-                const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-                right.y = 0;
-                right.normalize();
+                tmpForward.set(0, 0, -1).applyQuaternion(camera.quaternion);
+                tmpForward.y = 0;
+                tmpForward.normalize();
+                tmpRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
+                tmpRight.y = 0;
+                tmpRight.normalize();
 
-                const movement = new THREE.Vector3();
-                movement.addScaledVector(forward, -velocity.z * delta);
-                movement.addScaledVector(right, velocity.x * delta);
+                tmpMovement.set(0, 0, 0);
+                tmpMovement.addScaledVector(tmpForward, -velocity.z * delta);
+                tmpMovement.addScaledVector(tmpRight, velocity.x * delta);
 
-                const newPos = camera.position.clone();
-                newPos.x += movement.x;
-                if (!checkCollision(newPos)) camera.position.x = newPos.x;
+                tmpNewPos.copy(camera.position);
+                tmpNewPos.x += tmpMovement.x;
+                if (!checkCollision(tmpNewPos)) camera.position.x = tmpNewPos.x;
 
-                newPos.x = camera.position.x;
-                newPos.z += movement.z;
-                if (!checkCollision(newPos)) camera.position.z = newPos.z;
+                tmpNewPos.copy(camera.position);
+                tmpNewPos.z += tmpMovement.z;
+                if (!checkCollision(tmpNewPos)) camera.position.z = tmpNewPos.z;
 
-                newPos.x = camera.position.x;
-                newPos.z = camera.position.z;
-                newPos.y += velocity.y * delta;
-                if (!checkCollision(newPos)) {
-                    camera.position.y = newPos.y;
+                tmpNewPos.copy(camera.position);
+                tmpNewPos.y += velocity.y * delta;
+                if (!checkCollision(tmpNewPos)) {
+                    camera.position.y = tmpNewPos.y;
                 } else {
                     velocity.y = 0;
                     canJump = true;
@@ -1115,27 +2105,38 @@
         function updateWaterPhysics() {
             const moves = [];
 
-            Object.entries(blocks).forEach(([key, block]) => {
-                if (block.userData.type !== 7) return;
+            // Only scan water blocks (avoids iterating every block each tick).
+            waterBlocks.forEach((key) => {
+                const block = blocks[key];
+                if (!block) {
+                    waterBlocks.delete(key);
+                    return;
+                }
 
                 const { x, y, z } = block.userData;
 
-                const belowKey = `${x},${y-1},${z}`;
+                const belowY = y - 1;
+                const belowKey = `${x},${belowY},${z}`;
                 if (!blocks[belowKey] && y > 0) {
-                    moves.push({ from: key, to: `${x},${y-1},${z}`, type: 'down' });
+                    moves.push({ from: key, toKey: belowKey, toX: x, toY: belowY, toZ: z, type: 'down' });
                 } else {
                     const directions = [
                         [1, 0], [-1, 0], [0, 1], [0, -1]
                     ];
 
                     for (const [dx, dz] of directions) {
-                        const sideKey = `${x+dx},${y},${z+dz}`;
+                        const sx = x + dx;
+                        const sz = z + dz;
+                        const sideKey = `${sx},${y},${sz}`;
                         if (!blocks[sideKey]) {
-                            const belowSideKey = `${x+dx},${y-1},${z+dz}`;
+                            const belowSideKey = `${sx},${belowY},${sz}`;
                             const belowSideEmpty = y > 0 && !blocks[belowSideKey];
                             moves.push({
                                 from: key,
-                                to: sideKey,
+                                toKey: sideKey,
+                                toX: sx,
+                                toY: y,
+                                toZ: sz,
                                 type: belowSideEmpty ? 'side-fall' : 'side',
                                 priority: belowSideEmpty ? 1 : 0
                             });
@@ -1152,19 +2153,18 @@
 
             const processed = new Set();
             for (const move of moves) {
-                if (processed.has(move.to)) continue;
+                if (processed.has(move.toKey)) continue;
                 if (!blocks[move.from]) continue;
-                if (blocks[move.to]) continue;
+                if (blocks[move.toKey]) continue;
 
                 const block = blocks[move.from];
                 const { x, y, z, type } = block.userData;
 
                 removeBlock(x, y, z);
-                const [newX, newY, newZ] = move.to.split(',').map(Number);
-                createBlock(newX, newY, newZ, type);
+                createBlock(move.toX, move.toY, move.toZ, type);
 
                 processed.add(move.from);
-                processed.add(move.to);
+                processed.add(move.toKey);
                 break;
             }
         }
@@ -1173,6 +2173,8 @@
             const saveData = {
                 version: "1.0",
                 timestamp: Date.now(),
+                seed: worldSeed,
+                edits: Array.from(worldEdits.entries()),
                 player: {
                     position: camera.position.toArray(),
                     quaternion: camera.quaternion.toArray(),
@@ -1199,7 +2201,8 @@
 
             // Save spatial map
             Object.entries(spatialMap).forEach(([key, value]) => {
-                saveData.spatialMap[key] = value;
+                // Sets are not JSON-serializable; store as arrays.
+                saveData.spatialMap[key] = Array.from(value);
             });
 
             // Download as JSON file
@@ -1209,7 +2212,8 @@
             a.href = url;
             a.download = `minecraft-world-${Date.now()}.json`;
             a.click();
-            URL.revokeObjectURL(url);
+            // Give the browser a moment to start the download before revoking.
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
 
         function loadWorld(file) {
@@ -1221,19 +2225,30 @@
 
                     // Clear current world
                     Object.values(blocks).forEach(block => {
-                        block.material.dispose();
+                        // Materials are shared per-type; do not dispose per-block.
                         scene.remove(block);
                     });
                     blocks = {};
                     spatialMap = {};
+                    waterBlocks.clear();
+                    worldEdits.clear();
 
-                    // Load blocks
-                    Object.entries(saveData.blocks).forEach(([key, blockData]) => {
-                        createBlock(blockData.x, blockData.y, blockData.z, blockData.type);
-                    });
-
-                    // Load spatial map
-                    spatialMap = saveData.spatialMap || {};
+                    if (typeof saveData.seed === 'number') {
+                        // New save format: regenerate base world then apply edits.
+                        setWorldSeed(saveData.seed >>> 0);
+                        generateWorld();
+                        if (Array.isArray(saveData.edits)) {
+                            for (const [k, v] of saveData.edits) {
+                                if (typeof k === 'string' && typeof v === 'number') worldEdits.set(k, v | 0);
+                            }
+                        }
+                        applyEdits(worldEdits);
+                    } else {
+                        // Legacy save: load explicit blocks.
+                        Object.entries(saveData.blocks || {}).forEach(([key, blockData]) => {
+                            createBlock(blockData.x, blockData.y, blockData.z, blockData.type);
+                        });
+                    }
 
                     // Load player state
                     if (saveData.player) {
@@ -1242,9 +2257,14 @@
                         selectedBlockType = saveData.player.selectedBlockType || 1;
                         updateHotbar();
                     }
+                    // If saved position is invalid (inside blocks), fix it.
+                    ensureNotStuck();
 
                     // Load clouds
-                    clouds.forEach(cloud => scene.remove(cloud));
+                    clouds.forEach(cloud => {
+                        scene.remove(cloud);
+                        disposeObject3D(cloud);
+                    });
                     clouds = [];
                     if (saveData.clouds) {
                         saveData.clouds.forEach(cloudData => {
@@ -1280,7 +2300,8 @@
                     time = saveData.time || 0;
 
                     // Reset file input
-                    document.getElementById('loadFileInput').value = '';
+                    const loadInput = document.getElementById('loadFileInput');
+                    if (loadInput) loadInput.value = '';
 
                     // Resume game
                     document.getElementById('instructions').style.display = 'none';
@@ -1296,7 +2317,8 @@
 
                 } catch (error) {
                     alert('Failed to load world: ' + error.message);
-                    document.getElementById('loadFileInput').value = '';
+                    const loadInput = document.getElementById('loadFileInput');
+                    if (loadInput) loadInput.value = '';
                 }
             };
             reader.readAsText(file);
