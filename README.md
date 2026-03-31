@@ -1,6 +1,6 @@
-# Minecraft Clone
+# Clawcraft
 
-A browser-based Minecraft clone built with Three.js, featuring procedural terrain generation, block placement/destruction, and first-person controls.
+Clawcraft is a browser-based Minecraft clone built with Three.js, featuring procedural terrain generation, block placement/destruction, and first-person controls.
 
 ## Features
 
@@ -45,8 +45,9 @@ Visit the live site at: [https://dev-bhaskar8.github.io/minecraft-clone/](https:
 ## Project Structure
 
 ```
-minecraft-clone/
+clawcraft/
 ├── index.html    # Main game file containing all code
+├── favicon.png   # Game icon
 └── README.md     # Project documentation
 ```
 
